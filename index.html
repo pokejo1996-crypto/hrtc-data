@@ -1,38 +1,2117 @@
-name: Daily Rubber Board scrape
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HRTC Pro - Hindustan Rubber Trading Co.</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f6f7fa; color: #1a1f2e; line-height: 1.5; }
+.app { display: flex; min-height: 100vh; }
+aside { width: 240px; background: #1a1f2e; color: #fff; flex-shrink: 0; padding: 20px 0; }
+aside .brand { padding: 0 20px 20px; border-bottom: 1px solid #2a3040; }
+aside .brand .small { font-size: 10px; letter-spacing: 2px; color: #8893a8; }
+aside .brand .big { font-size: 17px; font-weight: 600; margin-top: 2px; }
+aside .brand .ver { font-size: 10px; color: #1a73e8; margin-top: 2px; font-weight: 500; }
+aside nav { padding: 12px; }
+aside nav a { display: block; padding: 9px 14px; border-radius: 6px; color: #c5cbd6; text-decoration: none; font-size: 14px; margin: 1px 0; cursor: pointer; }
+aside nav a:hover { background: #2a3040; color: #fff; }
+aside nav a.active { background: #1a73e8; color: #fff; }
+main { flex: 1; padding: 24px 32px; overflow-x: auto; min-width: 0; }
+.page { display: none; }
+.page.active { display: block; }
+h1 { font-size: 22px; margin-bottom: 4px; }
+h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+h3 { font-size: 13px; font-weight: 600; }
+.subtitle { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; cursor: pointer; color: #1a1f2e; }
+.btn:hover { background: #f3f4f6; }
+.btn-primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+.btn-primary:hover { background: #1557b0; }
+.btn-success { background: #0a8a3a; color: #fff; border-color: #0a8a3a; }
+.btn-success:hover { background: #086d2e; }
+.btn-danger { background: #c0392b; color: #fff; border-color: #c0392b; }
+.btn-danger:hover { background: #962d22; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: #fff; border: 1px solid #e6e8ec; border-radius: 8px; padding: 14px 16px; cursor: default; transition: border 0.15s; }
+.tile.clickable { cursor: pointer; }
+.tile.clickable:hover { border-color: #1a73e8; }
+.tile .tlabel { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; }
+.tile .tval { font-size: 22px; font-weight: 600; margin-top: 4px; }
+.tile .tsub { font-size: 11px; color: #6b7280; margin-top: 4px; }
+.card { background: #fff; border: 1px solid #e6e8ec; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.card h2 { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table th { text-align: left; padding: 8px 10px; background: #f3f4f6; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600; }
+table td { padding: 8px 10px; border-top: 1px solid #f0f1f4; }
+table tr:hover { background: #fafbfc; }
+.right { text-align: right; }
+.center { text-align: center; }
+.good { color: #0a8a3a; }
+.bad { color: #c0392b; }
+.warn { color: #b08800; }
+.empty { padding: 30px; text-align: center; color: #9ca3af; font-style: italic; font-size: 13px; }
+.row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+.row .field { flex: 1; min-width: 120px; }
+label { display: block; font-size: 11px; color: #4b5563; margin-bottom: 4px; font-weight: 500; }
+input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; }
+input:focus, select:focus, textarea:focus { outline: 2px solid #1a73e8; outline-offset: -1px; border-color: transparent; }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: none; align-items: flex-start; justify-content: center; padding: 24px; overflow-y: auto; }
+.modal-bg.active { display: flex; }
+.modal { background: #fff; border-radius: 8px; max-width: 920px; width: 100%; padding: 0; }
+.modal .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #e6e8ec; }
+.modal .body { padding: 20px; }
+.close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; line-height: 1; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: #fff; border: 1px solid #e6e8ec; border-left: 4px solid #0a8a3a; border-radius: 6px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 200; font-size: 13px; min-width: 220px; }
+.toast.error { border-left-color: #c0392b; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.badge-good { background: #d1fae5; color: #065f46; }
+.badge-warn { background: #fef3c7; color: #92400e; }
+.badge-bad { background: #fee2e2; color: #991b1b; }
+.itemRow { display: grid; grid-template-columns: 1.2fr 1.2fr 0.8fr 0.8fr 1fr 0.8fr auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+.itemRow input, .itemRow select { font-size: 12px; padding: 6px 8px; }
+.itemRow .small { font-size: 11px; color: #6b7280; }
+.totals { text-align: right; font-size: 13px; padding-top: 12px; border-top: 1px solid #e6e8ec; }
+.totals .grand { font-size: 18px; font-weight: 600; margin-top: 4px; }
+.warning { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+.info { background: #dbeafe; border: 1px solid #93c5fd; color: #1e40af; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+.success-banner { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+.row-tab { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+.row-tab button { padding: 6px 14px; font-size: 13px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer; }
+.row-tab button.active { background: #1a1f2e; color: #fff; }
+.pin-overlay { position: fixed; inset: 0; background: #1a1f2e; z-index: 1000; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #fff; }
+.pin-overlay h1 { font-size: 22px; margin-bottom: 24px; color: #fff; }
+.pin-overlay input { width: 200px; font-size: 24px; text-align: center; letter-spacing: 8px; padding: 12px; }
+.news-item { padding: 12px 14px; border-bottom: 1px solid #f0f1f4; }
+.news-item:last-child { border-bottom: none; }
+.news-item h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.news-item .meta { font-size: 11px; color: #6b7280; }
+.news-item a { color: #1a73e8; text-decoration: none; }
+.ai-narrative { background: linear-gradient(135deg, #dbeafe, #fff); border-left: 4px solid #1a73e8; padding: 14px 16px; border-radius: 6px; margin-bottom: 16px; }
+.ai-narrative h3 { color: #1e40af; margin-bottom: 8px; }
+.ai-narrative p { font-size: 13px; line-height: 1.7; white-space: pre-line; }
+.alert-card { background: #fff; border: 1px solid #e6e8ec; border-radius: 8px; padding: 14px; position: relative; }
+.alert-card .alert-grade { font-weight: 600; color: #1a73e8; }
+.alert-card .alert-target { font-size: 22px; font-weight: 600; margin: 6px 0; }
+@media (max-width: 768px) {
+  .app { flex-direction: column; }
+  aside { width: 100%; padding: 12px; }
+  aside nav { display: flex; gap: 4px; overflow-x: auto; padding: 0; }
+  aside nav a { white-space: nowrap; padding: 6px 12px; font-size: 12px; }
+  aside .brand { display: none; }
+  main { padding: 16px; }
+  .itemRow { grid-template-columns: 1fr 1fr; gap: 8px; padding-bottom: 10px; border-bottom: 1px dashed #e5e7eb; }
+}
+</style>
+</head>
+<body>
+<!-- PIN gate (only shown if PIN is set) -->
+<div id="pinGate" class="pin-overlay" style="display:none">
+  <h1>HRTC - Enter PIN</h1>
+  <input type="password" id="pinInput" maxlength="4" autofocus oninput="checkPin()" placeholder="0000" />
+  <p id="pinHint" style="margin-top:14px;color:#9aa1b3;font-size:12px">4-digit PIN, set in Settings page</p>
+</div>
 
-on:
-  # Runs at 18:30 IST = 13:00 UTC every day
-  schedule:
-    - cron: '0 13 * * *'
-  # Allow manual trigger from the GitHub UI
-  workflow_dispatch:
+<div class="app">
+<aside>
+  <div class="brand">
+    <div class="small">HINDUSTAN RUBBER</div>
+    <div class="big">Trading Co.</div>
+    <div class="ver">PRO v2 • offline</div>
+  </div>
+  <nav>
+    <a data-page="dashboard" class="active">Dashboard</a>
+    <a data-page="inventory">Inventory</a>
+    <a data-page="suppliers">Suppliers</a>
+    <a data-page="customers">Customers</a>
+    <a data-page="purchases">Purchases</a>
+    <a data-page="sales">Sales</a>
+    <a data-page="payments">Payments</a>
+    <a data-page="prices">Prices</a>
+    <a data-page="markets">Markets</a>
+    <a data-page="news">News</a>
+    <a data-page="reports">Reports</a>
+    <a data-page="alerts">Alerts</a>
+    <a data-page="settings">Settings</a>
+  </nav>
+</aside>
 
-jobs:
-  scrape:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
+<main>
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+<div id="page-dashboard" class="page active">
+  <h1>Dashboard</h1>
+  <p class="subtitle" id="todayDate"></p>
+  <div id="dashAiCard"></div>
+  <div class="tiles" id="dashTiles"></div>
+  <div class="card">
+    <h2>Latest Rubber Board prices
+      <button class="btn" onclick="fetchTodayPrices()">↻ Fetch today</button>
+    </h2>
+    <div id="dashLatest"></div>
+  </div>
+  <div class="card">
+    <h2>Recent activity</h2>
+    <div id="dashActivity"></div>
+  </div>
+</div>
 
-      - name: Run scraper
-        run: python scrape.py
+<div id="page-inventory" class="page">
+  <h1>Inventory</h1>
+  <p class="subtitle">Current stock with valuation at the latest Rubber Board price.</p>
+  <div class="tiles" id="invTiles"></div>
+  <div class="card"><h2>By grade</h2><table id="invByGrade"></table></div>
+  <div class="card"><h2>By warehouse</h2><table id="invByWarehouse"></table></div>
+  <div class="card"><h2>Recent movements</h2><table id="invMovements"></table></div>
+</div>
 
-      - name: Commit updated prices.json
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain data/prices.json)" ]; then
-            git add data/prices.json
-            DATE=$(date -u +'%Y-%m-%d')
-            git commit -m "Daily prices update $DATE"
-            git push
-            echo "Committed and pushed."
-          else
-            echo "No price changes."
-          fi
+<div id="page-suppliers" class="page">
+  <h1>Suppliers</h1><p class="subtitle">People and companies you buy from.</p>
+  <div class="card"><h2>All suppliers <button class="btn-primary btn" onclick="openModal('supplier')">+ New supplier</button></h2><table id="suppliersTable"></table></div>
+</div>
+
+<div id="page-customers" class="page">
+  <h1>Customers</h1><p class="subtitle">People and companies you sell to.</p>
+  <div class="card"><h2>All customers <button class="btn-primary btn" onclick="openModal('customer')">+ New customer</button></h2><table id="customersTable"></table></div>
+</div>
+
+<div id="page-purchases" class="page">
+  <h1>Purchases</h1><p class="subtitle">Stock you bought. Each entry updates inventory atomically.</p>
+  <div class="card"><h2>All purchases <button class="btn-primary btn" onclick="openPurchaseForm()">+ New purchase</button></h2><table id="purchasesTable"></table></div>
+</div>
+
+<div id="page-sales" class="page">
+  <h1>Sales</h1><p class="subtitle">Stock you sold. Stock is checked before save; margin is captured at sale time.</p>
+  <div class="card"><h2>All sales <button class="btn-primary btn" onclick="openSaleForm()">+ New sale</button></h2><table id="salesTable"></table></div>
+</div>
+
+<div id="page-payments" class="page">
+  <h1>Payments</h1><p class="subtitle">Money received from customers and paid to suppliers.</p>
+  <div class="card"><h2>All payments <button class="btn-primary btn" onclick="openPaymentForm()">+ New payment</button></h2><table id="paymentsTable"></table></div>
+</div>
+
+<div id="page-prices" class="page">
+  <h1>Prices</h1>
+  <p class="subtitle">Daily Rubber Board prices, Aug 2024 to Apr 2026 (632 days). Click "Fetch today" to add today's prices.</p>
+  <div id="priceFetchStatus"></div>
+  <div class="tiles" id="priceTiles"></div>
+  <div class="card">
+    <h2>Trend chart
+      <button class="btn" onclick="fetchTodayPrices()">↻ Fetch latest</button>
+    </h2>
+    <div class="row" style="margin-bottom:12px;">
+      <div class="field"><label>Period</label>
+        <select id="chartPeriod" onchange="renderChart()">
+          <option value="daily">Daily</option><option value="weekly" selected>Weekly</option><option value="monthly">Monthly</option>
+        </select>
+      </div>
+      <div class="field"><label>From</label><input type="date" id="chartFrom" onchange="renderChart()" /></div>
+      <div class="field"><label>To</label><input type="date" id="chartTo" onchange="renderChart()" /></div>
+    </div>
+    <div style="position:relative;height:340px"><canvas id="priceChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Add manual price entry</h2>
+    <form onsubmit="addPrice(event)">
+      <div class="row">
+        <div class="field"><label>Grade</label>
+          <select id="priceGrade" required>
+            <option value="RSS4">RSS4</option><option value="RSS5">RSS5</option>
+            <option value="ISNR20">ISNR20</option><option value="Latex">Latex</option>
+          </select>
+        </div>
+        <div class="field"><label>Date</label><input type="date" id="priceDate" required /></div>
+        <div class="field"><label>Price (₹/kg)</label><input type="number" step="0.01" id="priceVal" required /></div>
+        <div><button class="btn-primary btn">Save</button></div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="page-markets" class="page">
+  <h1>International Markets</h1>
+  <p class="subtitle">Brent crude oil and USD/INR exchange rate from Yahoo Finance.</p>
+  <div id="marketsContent"></div>
+</div>
+
+<div id="page-news" class="page">
+  <h1>Rubber & Commodity News</h1>
+  <p class="subtitle">Latest headlines fetched from public RSS feeds.</p>
+  <div class="card">
+    <h2>Headlines
+      <button class="btn-primary btn" onclick="fetchNews()">↻ Fetch news</button>
+    </h2>
+    <div id="newsContent"><div class="empty">Click "Fetch news" to load.</div></div>
+  </div>
+</div>
+
+<div id="page-reports" class="page">
+  <h1>Weekly summary</h1>
+  <p class="subtitle">Computed from your price history + transactions. Send via WhatsApp or email with one click.</p>
+  <div class="card">
+    <div id="weeklyReport"></div>
+  </div>
+</div>
+
+<div id="page-alerts" class="page">
+  <h1>Price alerts</h1>
+  <p class="subtitle">Get a browser notification when a grade crosses your target price.</p>
+  <div class="card">
+    <h2>All alerts <button class="btn-primary btn" onclick="openAlertModal()">+ New alert</button></h2>
+    <div id="alertsList"></div>
+  </div>
+</div>
+
+<div id="page-settings" class="page">
+  <h1>Settings</h1>
+  <p class="subtitle">API keys, your contact info, backup &amp; restore.</p>
+  <div class="card">
+    <h2>GitHub data source (optional - for daily auto-update)</h2>
+    <p style="font-size:12px;color:#6b7280;margin-bottom:8px">If you've set up the GitHub-powered daily scraper (see <code>SETUP.md</code>), paste your prices.json raw URL here. Then prices auto-update every day at 6:30 PM IST even when this app is closed. Leave blank to use the in-browser scraper only.</p>
+    <div class="row">
+      <div class="field" style="min-width:300px"><label>Raw URL (https://raw.githubusercontent.com/USER/REPO/main/data/prices.json)</label><input id="settingGithubUrl" placeholder="https://raw.githubusercontent.com/yourusername/hrtc-data/main/data/prices.json" /></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Anthropic API key (for AI weekly briefings)</h2>
+    <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Get a key at <a href="https://console.anthropic.com" target="_blank" style="color:#1a73e8">console.anthropic.com</a>. Stored only in your browser, never sent anywhere except Anthropic.</p>
+    <div class="row">
+      <div class="field" style="min-width:300px"><label>API key (sk-ant-...)</label><input type="password" id="settingApiKey" placeholder="sk-ant-..." /></div>
+      <div><button class="btn-primary btn" onclick="saveSettings()">Save</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Your contact info (for sending reports)</h2>
+    <div class="row">
+      <div class="field"><label>Your email</label><input type="email" id="settingEmail" placeholder="you@example.com" /></div>
+      <div class="field"><label>Your WhatsApp (with country code)</label><input id="settingWhatsapp" placeholder="+91XXXXXXXXXX" /></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Security</h2>
+    <div class="row">
+      <div class="field" style="min-width:200px"><label>4-digit PIN (leave blank to disable)</label><input type="password" id="settingPin" maxlength="4" placeholder="0000" /></div>
+    </div>
+    <p style="font-size:12px;color:#6b7280;margin-top:6px">PIN is stored locally and protects this app on this device only. Forgot PIN? Clear browser data for this site.</p>
+  </div>
+  <div class="card">
+    <h2>Backup &amp; restore</h2>
+    <p style="font-size:12px;color:#6b7280;margin-bottom:10px">Your data lives in this browser only. Back up regularly, especially before clearing browser data or switching devices.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-success btn" onclick="exportData()">⬇ Export all data (JSON)</button>
+      <label class="btn">⬆ Import data (JSON)<input type="file" accept=".json" onchange="importData(event)" style="display:none" /></label>
+      <button class="btn-danger btn" onclick="clearAllData()">⚠ Clear all data</button>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<div id="modalBg" class="modal-bg" onclick="closeOnBg(event)"><div class="modal" id="modalContent"></div></div>
+<div id="toast" style="display:none" class="toast"></div>
+
+<script>
+// Embedded historic prices (Aug 2024 - Apr 2026) from rubber_board CSV
+// Format: [date, RSS4, RSS5, ISNR20, Latex]
+const HISTORIC_PRICES = [
+  ["2024-08-01",227.0,222.0,217.0,173.3],
+  ["2024-08-02",230.0,225.0,219.0,173.3],
+  ["2024-08-03",231.0,226.0,219.0,173.3],
+  ["2024-08-04",231.0,226.0,219.0,173.3],
+  ["2024-08-05",235.0,230.0,223.0,173.3],
+  ["2024-08-06",238.0,233.0,226.0,173.3],
+  ["2024-08-07",241.0,236.0,230.0,173.3],
+  ["2024-08-08",244.0,239.0,233.0,172.25],
+  ["2024-08-09",247.0,242.0,236.0,171.2],
+  ["2024-08-10",247.0,243.0,236.0,171.2],
+  ["2024-08-11",247.0,243.0,236.0,171.2],
+  ["2024-08-12",246.0,243.0,236.0,171.2],
+  ["2024-08-13",243.0,240.0,235.0,169.05],
+  ["2024-08-14",241.0,237.0,233.0,169.05],
+  ["2024-08-15",241.0,237.0,233.0,169.05],
+  ["2024-08-16",239.0,234.0,229.0,165.9],
+  ["2024-08-17",239.0,234.0,229.0,165.9],
+  ["2024-08-18",239.0,234.0,229.0,165.9],
+  ["2024-08-19",237.0,232.0,225.0,162.75],
+  ["2024-08-20",235.0,231.0,223.0,159.55],
+  ["2024-08-21",235.0,231.0,221.0,158.5],
+  ["2024-08-22",235.0,231.0,219.0,153.2],
+  ["2024-08-23",235.0,231.0,215.0,151.1],
+  ["2024-08-24",235.0,231.0,215.0,151.1],
+  ["2024-08-25",235.0,231.0,215.0,151.1],
+  ["2024-08-26",235.0,231.0,214.0,149.0],
+  ["2024-08-27",235.0,231.0,211.0,146.9],
+  ["2024-08-28",235.0,231.0,211.0,146.9],
+  ["2024-08-29",237.0,232.0,211.0,144.75],
+  ["2024-08-30",237.0,232.0,211.0,144.75],
+  ["2024-08-31",237.0,232.0,211.0,144.75],
+  ["2024-09-01",237.0,232.0,211.0,144.75],
+  ["2024-09-02",235.0,231.0,211.0,142.65],
+  ["2024-09-03",234.0,230.0,208.0,140.55],
+  ["2024-09-04",232.0,229.0,207.0,138.45],
+  ["2024-09-05",230.0,227.0,206.0,136.3],
+  ["2024-09-06",230.0,227.0,206.0,136.3],
+  ["2024-09-07",229.0,226.0,206.0,136.3],
+  ["2024-09-08",229.0,226.0,206.0,136.3],
+  ["2024-09-09",229.0,226.0,206.0,136.3],
+  ["2024-09-10",229.0,226.0,206.0,136.3],
+  ["2024-09-11",229.0,226.0,206.0,136.3],
+  ["2024-09-12",229.0,226.0,204.0,137.35],
+  ["2024-09-13",229.0,226.0,204.0,137.35],
+  ["2024-09-14",229.0,226.0,204.0,137.35],
+  ["2024-09-15",229.0,226.0,204.0,137.35],
+  ["2024-09-16",229.0,226.0,204.0,137.35],
+  ["2024-09-17",229.0,226.0,204.0,137.35],
+  ["2024-09-18",230.0,227.0,204.0,138.45],
+  ["2024-09-19",230.0,227.0,204.0,140.55],
+  ["2024-09-20",231.0,228.0,204.0,142.65],
+  ["2024-09-21",231.0,228.0,204.0,142.65],
+  ["2024-09-22",231.0,228.0,204.0,142.65],
+  ["2024-09-23",229.0,226.0,203.0,142.65],
+  ["2024-09-24",228.0,225.0,202.0,142.65],
+  ["2024-09-25",228.0,225.0,200.0,142.65],
+  ["2024-09-26",227.0,224.0,198.0,142.65],
+  ["2024-09-27",226.0,223.0,197.0,142.65],
+  ["2024-09-28",225.0,222.0,197.0,142.65],
+  ["2024-09-29",225.0,222.0,197.0,142.65],
+  ["2024-09-30",224.0,221.0,196.0,142.65],
+  ["2024-10-01",224.0,221.0,195.0,142.65],
+  ["2024-10-02",224.0,221.0,195.0,142.65],
+  ["2024-10-03",221.0,218.0,195.0,142.65],
+  ["2024-10-04",217.0,214.0,193.0,141.6],
+  ["2024-10-05",217.0,214.0,193.0,141.6],
+  ["2024-10-06",217.0,214.0,193.0,141.6],
+  ["2024-10-07",213.0,210.0,190.0,140.55],
+  ["2024-10-08",210.0,207.0,189.0,139.5],
+  ["2024-10-09",209.0,205.0,186.0,138.45],
+  ["2024-10-10",206.0,202.0,183.0,137.35],
+  ["2024-10-11",203.0,199.0,180.0,136.3],
+  ["2024-10-12",203.0,199.0,180.0,136.3],
+  ["2024-10-13",201.0,197.0,178.0,134.2],
+  ["2024-10-14",201.0,197.0,178.0,134.2],
+  ["2024-10-15",200.0,196.0,178.0,132.1],
+  ["2024-10-16",198.0,194.0,176.0,131.05],
+  ["2024-10-17",196.0,192.0,175.0,131.05],
+  ["2024-10-18",194.0,190.0,174.0,129.95],
+  ["2024-10-19",191.0,187.0,174.0,129.95],
+  ["2024-10-20",191.0,187.0,174.0,129.95],
+  ["2024-10-21",187.0,183.0,173.0,126.8],
+  ["2024-10-22",184.0,180.0,172.0,123.65],
+  ["2024-10-23",184.0,180.0,171.0,122.6],
+  ["2024-10-24",184.0,180.0,170.0,122.6],
+  ["2024-10-25",184.0,180.0,170.0,123.65],
+  ["2024-10-26",184.0,180.0,170.0,123.65],
+  ["2024-10-27",184.0,180.0,170.0,123.65],
+  ["2024-10-28",184.0,180.0,170.0,124.7],
+  ["2024-10-29",183.0,179.0,170.0,125.2],
+  ["2024-10-30",182.0,178.0,171.0,125.2],
+  ["2024-10-31",182.0,178.0,171.0,125.2],
+  ["2024-11-01",180.0,176.0,171.0,124.15],
+  ["2024-11-02",180.0,176.0,171.0,124.15],
+  ["2024-11-03",180.0,176.0,171.0,124.15],
+  ["2024-11-04",180.0,176.0,171.0,123.65],
+  ["2024-11-05",180.0,176.0,171.0,122.6],
+  ["2024-11-06",181.0,177.0,171.0,122.6],
+  ["2024-11-07",182.0,178.0,172.0,123.65],
+  ["2024-11-08",184.0,180.0,174.0,124.7],
+  ["2024-11-09",184.0,180.0,174.0,124.7],
+  ["2024-11-10",184.0,180.0,174.0,124.7],
+  ["2024-11-11",184.0,181.0,176.0,126.8],
+  ["2024-11-12",184.0,181.0,178.0,126.8],
+  ["2024-11-13",184.0,181.0,178.0,124.7],
+  ["2024-11-14",183.0,180.0,178.0,123.65],
+  ["2024-11-15",183.0,180.0,178.0,123.65],
+  ["2024-11-16",183.0,180.0,178.0,123.65],
+  ["2024-11-17",183.0,180.0,178.0,123.65],
+  ["2024-11-18",183.0,180.0,178.0,122.6],
+  ["2024-11-19",183.0,180.0,178.0,122.6],
+  ["2024-11-20",184.0,181.0,178.0,122.6],
+  ["2024-11-21",185.0,182.0,178.0,123.65],
+  ["2024-11-22",186.0,183.0,179.0,123.65],
+  ["2024-11-23",186.0,183.0,179.0,123.65],
+  ["2024-11-24",186.0,183.0,179.0,123.65],
+  ["2024-11-25",187.0,184.0,179.0,123.65],
+  ["2024-11-26",189.0,185.0,181.0,123.65],
+  ["2024-11-27",190.0,186.0,181.0,124.7],
+  ["2024-11-28",192.0,188.0,183.0,125.75],
+  ["2024-11-29",194.0,190.0,186.0,126.8],
+  ["2024-11-30",195.0,191.0,186.0,126.8],
+  ["2024-12-01",195.0,191.0,186.0,126.8],
+  ["2024-12-02",197.0,193.0,188.0,128.9],
+  ["2024-12-03",199.0,195.0,191.0,128.9],
+  ["2024-12-04",199.0,195.0,192.0,128.9],
+  ["2024-12-05",198.0,194.0,192.0,126.8],
+  ["2024-12-06",197.0,193.0,192.0,124.7],
+  ["2024-12-07",196.0,192.0,192.0,124.7],
+  ["2024-12-08",196.0,192.0,192.0,124.7],
+  ["2024-12-09",195.0,191.0,190.0,123.65],
+  ["2024-12-10",193.0,189.0,187.0,122.6],
+  ["2024-12-11",191.0,187.0,184.0,122.6],
+  ["2024-12-12",191.0,187.0,184.0,122.6],
+  ["2024-12-13",191.0,187.0,184.0,123.65],
+  ["2024-12-14",191.0,187.0,184.0,123.65],
+  ["2024-12-15",191.0,187.0,184.0,123.65],
+  ["2024-12-16",191.0,187.0,184.0,123.65],
+  ["2024-12-17",191.0,187.0,184.0,123.65],
+  ["2024-12-18",191.0,187.0,184.0,123.65],
+  ["2024-12-19",190.0,186.0,184.0,124.7],
+  ["2024-12-20",189.0,185.0,183.0,124.7],
+  ["2024-12-21",189.0,185.0,183.0,124.7],
+  ["2024-12-22",189.0,185.0,183.0,124.7],
+  ["2024-12-23",188.0,184.0,182.0,126.8],
+  ["2024-12-24",188.0,184.0,181.0,126.8],
+  ["2024-12-25",188.0,184.0,181.0,126.8],
+  ["2024-12-26",188.0,184.0,181.0,126.8],
+  ["2024-12-27",188.0,184.0,180.0,126.8],
+  ["2024-12-28",188.0,184.0,180.0,126.8],
+  ["2024-12-29",188.0,184.0,180.0,126.8],
+  ["2024-12-30",190.0,185.0,180.0,127.85],
+  ["2024-12-31",190.0,186.0,180.0,129.95],
+  ["2025-01-01",191.0,187.0,180.0,132.1],
+  ["2025-01-02",192.0,188.0,180.0,133.15],
+  ["2025-01-03",192.0,188.0,180.0,133.15],
+  ["2025-01-04",191.0,187.0,180.0,133.15],
+  ["2025-01-05",191.0,187.0,180.0,133.15],
+  ["2025-01-06",190.0,186.0,179.0,133.15],
+  ["2025-01-07",189.0,185.0,178.0,132.1],
+  ["2025-01-08",188.0,184.0,177.0,131.05],
+  ["2025-01-09",188.0,184.0,177.0,132.1],
+  ["2025-01-10",189.0,185.0,177.0,133.15],
+  ["2025-01-11",190.0,186.0,177.0,133.15],
+  ["2025-01-12",190.0,186.0,177.0,133.15],
+  ["2025-01-13",191.0,187.0,177.0,135.2],
+  ["2025-01-14",192.0,188.0,178.0,137.35],
+  ["2025-01-15",192.0,188.0,178.0,138.45],
+  ["2025-01-16",192.0,188.0,179.0,139.5],
+  ["2025-01-17",192.0,188.0,180.0,140.55],
+  ["2025-01-18",192.0,188.0,180.0,140.55],
+  ["2025-01-19",192.0,188.0,180.0,140.55],
+  ["2025-01-20",191.0,187.0,180.0,140.55],
+  ["2025-01-21",191.0,187.0,180.0,140.55],
+  ["2025-01-22",191.0,187.0,180.0,139.5],
+  ["2025-01-23",191.0,187.0,180.0,139.5],
+  ["2025-01-24",191.0,187.0,180.0,139.5],
+  ["2025-01-25",191.0,187.0,180.0,138.45],
+  ["2025-01-26",191.0,187.0,180.0,138.45],
+  ["2025-01-27",191.0,187.0,180.0,137.35],
+  ["2025-01-28",191.0,187.0,180.0,137.35],
+  ["2025-01-29",192.0,188.0,180.0,137.35],
+  ["2025-01-30",192.0,188.0,180.0,138.45],
+  ["2025-01-31",192.0,188.0,180.0,138.45],
+  ["2025-02-01",192.0,188.0,180.0,138.45],
+  ["2025-02-02",192.0,188.0,180.0,138.45],
+  ["2025-02-03",192.0,188.0,181.0,138.45],
+  ["2025-02-04",192.0,188.0,181.0,138.45],
+  ["2025-02-05",192.0,188.0,181.0,137.35],
+  ["2025-02-06",191.0,187.0,181.0,137.35],
+  ["2025-02-07",191.0,187.0,181.0,137.35],
+  ["2025-02-08",191.0,187.0,181.0,137.35],
+  ["2025-02-09",191.0,187.0,181.0,137.35],
+  ["2025-02-10",191.0,187.0,181.0,137.35],
+  ["2025-02-11",190.0,186.0,181.0,136.3],
+  ["2025-02-12",190.0,186.0,180.0,135.25],
+  ["2025-02-13",190.0,186.0,180.0,135.25],
+  ["2025-02-14",190.0,186.0,180.0,135.25],
+  ["2025-02-15",190.0,186.0,180.0,135.25],
+  ["2025-02-16",190.0,186.0,180.0,135.25],
+  ["2025-02-17",190.5,186.5,180.5,136.3],
+  ["2025-02-18",190.5,186.5,180.5,136.3],
+  ["2025-02-19",190.5,186.5,180.5,136.3],
+  ["2025-02-20",190.5,186.5,180.5,136.3],
+  ["2025-02-21",191.0,187.0,180.0,136.3],
+  ["2025-02-22",191.5,187.5,180.0,136.3],
+  ["2025-02-23",191.5,187.5,180.0,136.3],
+  ["2025-02-24",191.5,187.5,180.0,136.3],
+  ["2025-02-25",192.0,188.0,180.0,136.3],
+  ["2025-02-26",192.0,188.0,180.0,135.25],
+  ["2025-02-27",192.0,188.0,180.0,135.25],
+  ["2025-02-28",192.0,188.0,180.0,134.2],
+  ["2025-03-01",192.0,188.0,180.0,134.2],
+  ["2025-03-02",192.0,188.0,180.0,134.2],
+  ["2025-03-03",192.0,189.0,180.0,134.2],
+  ["2025-03-04",192.5,189.0,180.0,135.25],
+  ["2025-03-05",192.5,189.5,180.0,135.25],
+  ["2025-03-06",193.0,189.5,180.0,135.25],
+  ["2025-03-07",193.5,190.0,180.0,135.25],
+  ["2025-03-08",194.0,190.0,180.0,135.25],
+  ["2025-03-09",194.0,190.0,180.0,135.25],
+  ["2025-03-10",194.0,191.0,180.0,135.25],
+  ["2025-03-11",194.5,191.0,180.0,134.2],
+  ["2025-03-12",195.0,191.5,180.0,134.2],
+  ["2025-03-13",195.0,191.5,181.0,134.2],
+  ["2025-03-14",196.0,192.5,181.0,134.2],
+  ["2025-03-15",196.0,192.5,181.0,134.2],
+  ["2025-03-16",196.0,192.5,181.0,134.2],
+  ["2025-03-17",197.0,194.0,181.5,135.25],
+  ["2025-03-18",198.0,195.0,182.0,135.8],
+  ["2025-03-19",200.0,196.0,182.0,135.8],
+  ["2025-03-20",200.0,196.0,183.0,136.3],
+  ["2025-03-21",201.0,197.0,184.0,136.85],
+  ["2025-03-22",202.0,198.0,184.0,136.85],
+  ["2025-03-23",202.0,198.0,184.0,136.85],
+  ["2025-03-24",204.0,200.0,185.0,136.85],
+  ["2025-03-25",204.0,200.0,185.0,136.85],
+  ["2025-03-26",204.0,201.0,186.0,137.9],
+  ["2025-03-27",204.5,201.5,186.0,138.45],
+  ["2025-03-28",205.0,202.0,186.0,138.45],
+  ["2025-03-29",205.0,202.0,186.0,138.45],
+  ["2025-03-30",205.0,202.0,186.0,138.45],
+  ["2025-03-31",205.0,202.0,186.0,138.45],
+  ["2025-04-01",206.0,203.0,186.0,139.5],
+  ["2025-04-02",207.0,204.0,187.0,141.6],
+  ["2025-04-03",207.0,204.0,187.0,141.6],
+  ["2025-04-04",206.0,203.0,187.0,141.6],
+  ["2025-04-05",205.0,202.0,187.0,141.6],
+  ["2025-04-06",205.0,202.0,187.0,141.6],
+  ["2025-04-07",202.0,199.0,185.0,138.45],
+  ["2025-04-08",200.0,197.0,183.0,137.35],
+  ["2025-04-09",197.0,194.0,182.0,135.25],
+  ["2025-04-10",197.0,194.0,182.0,135.25],
+  ["2025-04-11",197.0,194.0,180.0,136.3],
+  ["2025-04-12",197.0,194.0,180.0,136.3],
+  ["2025-04-13",197.0,194.0,180.0,136.3],
+  ["2025-04-14",197.0,194.0,180.0,136.3],
+  ["2025-04-15",197.0,194.0,180.0,138.45],
+  ["2025-04-16",197.0,194.0,180.0,139.5],
+  ["2025-04-17",197.0,194.0,178.0,140.55],
+  ["2025-04-18",197.0,194.0,178.0,140.55],
+  ["2025-04-19",197.0,194.0,178.0,140.55],
+  ["2025-04-20",197.0,194.0,178.0,140.55],
+  ["2025-04-21",197.5,194.5,178.0,141.6],
+  ["2025-04-22",198.0,195.0,177.0,141.6],
+  ["2025-04-23",198.0,195.0,175.0,141.6],
+  ["2025-04-24",198.0,195.0,174.0,141.6],
+  ["2025-04-25",198.0,195.0,174.0,141.6],
+  ["2025-04-26",198.5,195.5,174.0,141.6],
+  ["2025-04-27",198.5,195.5,174.0,141.6],
+  ["2025-04-28",199.0,196.0,174.0,141.6],
+  ["2025-04-29",199.0,196.0,174.0,141.6],
+  ["2025-04-30",199.0,196.0,173.0,140.55],
+  ["2025-05-01",199.0,195.0,173.0,140.55],
+  ["2025-05-02",198.0,194.0,172.0,139.5],
+  ["2025-05-03",198.0,194.0,172.0,139.5],
+  ["2025-05-04",198.0,194.0,172.0,139.5],
+  ["2025-05-05",197.0,193.0,171.0,138.45],
+  ["2025-05-06",196.0,192.0,170.0,137.35],
+  ["2025-05-07",196.0,192.0,169.0,138.45],
+  ["2025-05-08",196.0,192.0,168.0,139.5],
+  ["2025-05-09",196.0,192.0,167.0,140.55],
+  ["2025-05-10",196.0,192.0,167.0,140.55],
+  ["2025-05-11",196.0,192.0,167.0,140.55],
+  ["2025-05-12",196.0,192.0,167.0,140.55],
+  ["2025-05-13",196.0,192.0,167.0,142.15],
+  ["2025-05-14",196.5,192.5,168.0,142.65],
+  ["2025-05-15",196.5,192.5,169.0,142.65],
+  ["2025-05-16",196.5,192.5,170.0,142.65],
+  ["2025-05-17",196.5,192.5,170.0,142.65],
+  ["2025-05-18",196.5,192.5,170.0,142.65],
+  ["2025-05-19",196.5,193.0,171.0,143.7],
+  ["2025-05-20",196.5,193.0,171.0,143.7],
+  ["2025-05-21",196.5,193.5,172.0,144.75],
+  ["2025-05-22",197.0,194.0,172.0,145.3],
+  ["2025-05-23",197.0,194.0,173.0,145.8],
+  ["2025-05-24",197.5,194.5,173.0,145.8],
+  ["2025-05-25",197.5,194.5,173.0,145.8],
+  ["2025-05-26",198.0,195.0,173.0,146.9],
+  ["2025-05-27",199.0,196.0,173.0,147.95],
+  ["2025-05-28",200.0,197.0,175.0,147.95],
+  ["2025-05-29",200.0,197.0,176.0,147.95],
+  ["2025-05-30",200.0,197.0,177.0,147.95],
+  ["2025-05-31",200.0,197.0,177.0,147.95],
+  ["2025-06-01",200.0,197.0,177.0,147.95],
+  ["2025-06-02",200.0,196.0,177.0,146.9],
+  ["2025-06-03",199.0,195.0,176.5,145.8],
+  ["2025-06-04",198.0,194.0,176.0,143.7],
+  ["2025-06-05",197.5,193.5,176.0,142.65],
+  ["2025-06-06",197.5,193.5,176.0,140.55],
+  ["2025-06-07",197.5,193.5,176.0,140.55],
+  ["2025-06-08",197.5,193.5,176.0,140.55],
+  ["2025-06-09",197.0,193.0,176.0,140.55],
+  ["2025-06-10",197.0,193.0,176.0,141.6],
+  ["2025-06-11",197.0,193.5,176.0,141.6],
+  ["2025-06-12",197.0,194.0,175.5,141.5],
+  ["2025-06-13",197.0,194.0,175.0,142.65],
+  ["2025-06-14",197.5,194.5,175.0,142.65],
+  ["2025-06-15",197.5,194.5,175.0,142.65],
+  ["2025-06-16",197.5,195.0,176.0,142.65],
+  ["2025-06-17",198.0,195.0,176.0,142.65],
+  ["2025-06-18",199.0,196.0,176.0,142.65],
+  ["2025-06-19",200.0,197.0,176.0,142.65],
+  ["2025-06-20",200.0,197.0,177.0,141.6],
+  ["2025-06-21",200.5,197.5,177.0,141.6],
+  ["2025-06-22",200.5,197.5,177.0,141.6],
+  ["2025-06-23",200.5,197.5,177.0,141.6],
+  ["2025-06-24",200.5,197.5,177.0,141.6],
+  ["2025-06-25",200.5,197.5,177.5,141.6],
+  ["2025-06-26",200.5,197.5,178.0,142.15],
+  ["2025-06-27",201.0,198.0,178.0,142.65],
+  ["2025-06-28",201.0,198.0,178.0,142.65],
+  ["2025-06-29",201.0,198.0,178.0,142.65],
+  ["2025-06-30",201.0,198.0,179.0,142.65],
+  ["2025-07-01",201.0,198.0,180.0,142.65],
+  ["2025-07-02",201.5,198.5,181.0,142.65],
+  ["2025-07-03",202.0,199.0,181.0,142.65],
+  ["2025-07-04",202.5,199.5,182.0,142.65],
+  ["2025-07-05",202.5,199.5,182.0,142.65],
+  ["2025-07-06",202.5,199.5,182.0,142.65],
+  ["2025-07-07",203.0,200.0,182.0,141.6],
+  ["2025-07-08",204.0,201.0,183.0,141.6],
+  ["2025-07-09",204.5,201.5,184.0,141.6],
+  ["2025-07-10",205.0,201.5,185.0,142.15],
+  ["2025-07-11",206.0,202.0,186.0,142.65],
+  ["2025-07-12",206.5,202.5,186.0,142.65],
+  ["2025-07-13",206.5,202.5,186.0,142.65],
+  ["2025-07-14",207.5,203.5,187.0,143.7],
+  ["2025-07-15",208.0,204.0,188.0,144.75],
+  ["2025-07-16",209.0,205.0,189.0,145.8],
+  ["2025-07-17",209.0,205.0,190.0,146.9],
+  ["2025-07-18",210.0,206.0,190.0,147.95],
+  ["2025-07-19",210.5,206.5,190.0,147.95],
+  ["2025-07-20",210.5,206.5,190.0,147.95],
+  ["2025-07-21",211.5,207.5,191.0,147.95],
+  ["2025-07-22",212.0,208.0,191.0,147.95],
+  ["2025-07-23",213.0,209.0,191.0,147.95],
+  ["2025-07-24",213.0,209.0,191.0,147.95],
+  ["2025-07-25",213.0,209.0,191.0,146.9],
+  ["2025-07-26",213.0,209.0,191.0,146.9],
+  ["2025-07-27",213.0,209.0,191.0,146.9],
+  ["2025-07-28",212.0,208.0,190.0,145.8],
+  ["2025-07-29",211.0,207.0,189.0,144.75],
+  ["2025-07-30",209.0,205.0,189.0,141.6],
+  ["2025-07-31",207.0,203.0,186.0,140.55],
+  ["2025-08-01",206.0,202.0,185.0,140.55],
+  ["2025-08-02",204.0,200.0,185.0,140.55],
+  ["2025-08-03",204.0,200.0,185.0,140.55],
+  ["2025-08-04",204.0,200.0,182.0,141.6],
+  ["2025-08-05",204.0,200.0,181.0,141.6],
+  ["2025-08-06",204.0,200.0,181.0,141.6],
+  ["2025-08-07",204.0,200.0,178.0,141.6],
+  ["2025-08-08",203.0,199.0,177.0,140.55],
+  ["2025-08-09",202.0,199.0,177.0,140.55],
+  ["2025-08-10",202.0,199.0,177.0,140.55],
+  ["2025-08-11",201.0,198.0,176.0,139.5],
+  ["2025-08-12",201.0,198.0,175.0,138.45],
+  ["2025-08-13",200.0,197.0,174.0,137.35],
+  ["2025-08-14",199.0,196.0,174.0,137.35],
+  ["2025-08-15",199.0,196.0,174.0,137.35],
+  ["2025-08-16",198.0,195.0,174.0,137.35],
+  ["2025-08-17",198.0,195.0,174.0,137.35],
+  ["2025-08-18",197.0,194.0,173.0,136.3],
+  ["2025-08-19",196.0,193.0,171.0,135.25],
+  ["2025-08-20",194.0,191.0,169.0,133.15],
+  ["2025-08-21",192.0,189.0,167.0,131.05],
+  ["2025-08-22",190.0,187.0,166.0,131.05],
+  ["2025-08-23",189.0,186.0,166.0,131.05],
+  ["2025-08-24",189.0,186.0,166.0,131.05],
+  ["2025-08-25",189.0,186.0,165.0,133.2],
+  ["2025-08-26",189.0,186.0,165.0,132.1],
+  ["2025-08-27",189.0,186.0,164.0,132.1],
+  ["2025-08-28",189.0,186.0,164.0,132.1],
+  ["2025-08-29",189.0,186.0,164.0,132.1],
+  ["2025-08-30",189.0,186.0,164.0,132.1],
+  ["2025-08-31",189.0,186.0,164.0,132.1],
+  ["2025-09-01",190.5,187.5,164.0,132.1],
+  ["2025-09-02",191.0,188.0,164.5,132.1],
+  ["2025-09-03",191.5,188.5,164.5,132.1],
+  ["2025-09-04",191.5,188.5,164.5,132.1],
+  ["2025-09-05",191.5,188.5,164.5,132.1],
+  ["2025-09-06",191.5,188.5,164.5,132.1],
+  ["2025-09-07",191.5,188.5,164.5,132.1],
+  ["2025-09-08",191.5,188.5,165.0,131.05],
+  ["2025-09-09",191.5,188.5,165.0,131.05],
+  ["2025-09-10",191.0,188.0,165.0,131.05],
+  ["2025-09-11",189.0,186.0,164.0,129.95],
+  ["2025-09-12",188.0,185.0,164.0,128.9],
+  ["2025-09-13",187.0,184.0,164.0,128.9],
+  ["2025-09-14",187.0,184.0,164.0,128.9],
+  ["2025-09-15",186.0,183.0,163.0,127.85],
+  ["2025-09-16",186.0,183.0,163.0,127.85],
+  ["2025-09-17",186.0,183.0,163.0,127.85],
+  ["2025-09-18",186.0,183.0,163.0,127.85],
+  ["2025-09-19",186.0,183.0,163.0,128.9],
+  ["2025-09-20",186.0,183.0,163.0,128.9],
+  ["2025-09-21",186.0,183.0,163.0,128.9],
+  ["2025-09-22",186.0,183.0,163.0,128.9],
+  ["2025-09-23",186.0,183.0,163.0,128.9],
+  ["2025-09-24",186.0,183.0,163.0,127.85],
+  ["2025-09-25",187.0,184.0,164.0,127.85],
+  ["2025-09-26",188.0,184.0,164.5,127.85],
+  ["2025-09-27",188.0,184.0,164.5,127.85],
+  ["2025-09-28",188.0,184.0,164.5,127.85],
+  ["2025-09-29",188.5,184.5,165.0,127.85],
+  ["2025-09-30",188.5,184.5,165.0,127.85],
+  ["2025-10-01",188.5,184.5,165.0,127.85],
+  ["2025-10-02",188.5,184.5,165.0,127.85],
+  ["2025-10-03",187.0,183.5,165.0,125.75],
+  ["2025-10-04",186.0,182.5,165.0,125.75],
+  ["2025-10-05",186.0,182.5,165.0,125.75],
+  ["2025-10-06",186.0,182.5,165.0,125.2],
+  ["2025-10-07",186.0,182.5,165.0,124.15],
+  ["2025-10-08",186.0,183.0,164.0,124.15],
+  ["2025-10-09",186.5,183.5,164.0,124.7],
+  ["2025-10-10",187.0,184.0,164.5,125.75],
+  ["2025-10-11",187.5,184.0,164.5,125.75],
+  ["2025-10-12",187.5,184.0,164.5,125.75],
+  ["2025-10-13",187.0,183.5,164.5,126.8],
+  ["2025-10-14",186.5,183.0,164.5,126.8],
+  ["2025-10-15",186.0,182.5,164.0,126.8],
+  ["2025-10-16",186.5,183.0,164.0,126.8],
+  ["2025-10-17",186.5,183.0,164.0,126.3],
+  ["2025-10-18",186.5,183.0,164.0,126.3],
+  ["2025-10-19",186.5,183.0,164.0,126.3],
+  ["2025-10-20",186.5,183.0,164.0,126.3],
+  ["2025-10-21",187.0,183.0,164.0,126.3],
+  ["2025-10-22",187.5,183.5,164.5,126.3],
+  ["2025-10-23",187.5,183.5,165.0,126.3],
+  ["2025-10-24",187.5,183.5,164.5,126.3],
+  ["2025-10-25",188.5,184.5,165.5,126.8],
+  ["2025-10-26",188.5,184.5,165.5,126.8],
+  ["2025-10-27",189.0,185.0,165.5,127.85],
+  ["2025-10-28",189.5,185.5,165.5,127.85],
+  ["2025-10-29",189.5,185.5,166.5,127.85],
+  ["2025-10-30",188.5,184.5,166.5,126.8],
+  ["2025-10-31",187.0,183.5,166.0,125.75],
+  ["2025-11-01",186.0,182.5,166.0,125.75],
+  ["2025-11-02",186.0,182.5,166.0,125.75],
+  ["2025-11-03",185.0,181.5,165.0,123.65],
+  ["2025-11-04",184.0,180.5,164.0,122.6],
+  ["2025-11-05",184.0,180.5,164.0,122.6],
+  ["2025-11-06",184.0,180.5,163.0,123.65],
+  ["2025-11-07",184.0,180.5,163.0,124.7],
+  ["2025-11-08",185.0,181.0,163.0,124.7],
+  ["2025-11-09",185.0,181.0,163.0,124.7],
+  ["2025-11-10",185.0,181.0,163.0,124.7],
+  ["2025-11-11",186.0,182.0,163.5,125.75],
+  ["2025-11-12",187.0,182.0,164.5,125.75],
+  ["2025-11-13",187.0,182.0,165.0,125.75],
+  ["2025-11-14",187.0,182.0,165.0,125.2],
+  ["2025-11-15",186.0,182.0,165.0,125.2],
+  ["2025-11-16",186.0,182.0,165.0,125.2],
+  ["2025-11-17",186.0,181.0,165.0,125.2],
+  ["2025-11-18",185.0,181.0,165.0,124.7],
+  ["2025-11-19",185.0,181.0,165.0,124.7],
+  ["2025-11-20",186.0,181.0,165.0,125.75],
+  ["2025-11-21",186.0,181.0,165.0,125.75],
+  ["2025-11-22",186.0,181.0,165.0,125.75],
+  ["2025-11-23",186.0,181.0,165.0,125.75],
+  ["2025-11-24",186.0,181.0,165.0,126.8],
+  ["2025-11-25",186.0,181.0,165.0,127.35],
+  ["2025-11-26",185.5,181.0,165.0,126.8],
+  ["2025-11-27",185.5,181.0,165.0,126.8],
+  ["2025-11-28",185.5,181.0,165.0,126.8],
+  ["2025-11-29",185.5,181.5,165.0,126.8],
+  ["2025-11-30",185.5,181.5,165.0,126.8],
+  ["2025-12-01",185.0,181.0,164.0,126.8],
+  ["2025-12-02",185.0,181.0,164.0,126.8],
+  ["2025-12-03",185.0,181.0,163.5,126.8],
+  ["2025-12-04",184.0,181.0,163.5,126.8],
+  ["2025-12-05",184.0,181.0,163.5,126.8],
+  ["2025-12-06",184.0,181.0,163.5,126.8],
+  ["2025-12-07",184.0,181.0,163.5,126.8],
+  ["2025-12-08",184.0,181.0,163.5,126.8],
+  ["2025-12-09",184.0,181.0,163.5,126.8],
+  ["2025-12-10",184.0,181.0,163.5,127.35],
+  ["2025-12-11",184.0,181.0,163.5,127.85],
+  ["2025-12-12",184.0,181.0,163.5,128.9],
+  ["2025-12-13",184.0,181.0,163.5,128.9],
+  ["2025-12-14",184.0,181.0,163.5,128.9],
+  ["2025-12-15",183.5,180.0,163.5,129.45],
+  ["2025-12-16",183.5,180.0,163.5,129.95],
+  ["2025-12-17",183.0,179.5,163.5,129.95],
+  ["2025-12-18",183.0,179.5,163.5,129.45],
+  ["2025-12-19",183.0,179.5,163.5,128.9],
+  ["2025-12-20",183.0,179.5,163.5,128.9],
+  ["2025-12-21",183.0,179.5,163.5,128.9],
+  ["2025-12-22",183.0,179.5,163.5,128.4],
+  ["2025-12-23",183.0,179.5,163.0,127.35],
+  ["2025-12-24",183.0,179.5,163.5,127.35],
+  ["2025-12-25",183.0,179.5,163.5,127.35],
+  ["2025-12-26",183.5,179.5,163.5,127.35],
+  ["2025-12-27",184.0,180.0,163.5,127.35],
+  ["2025-12-28",184.0,180.0,163.5,127.35],
+  ["2025-12-29",184.5,180.5,164.0,128.4],
+  ["2025-12-30",185.0,181.0,164.5,128.9],
+  ["2025-12-31",185.0,181.0,164.5,129.45],
+  ["2026-01-01",185.0,181.0,164.5,129.45],
+  ["2026-01-02",185.0,181.0,165.0,128.9],
+  ["2026-01-03",185.5,181.5,165.0,128.9],
+  ["2026-01-04",185.5,181.5,165.0,128.9],
+  ["2026-01-05",186.0,182.0,165.0,128.9],
+  ["2026-01-06",186.5,182.0,165.0,128.4],
+  ["2026-01-07",187.0,182.5,166.0,128.9],
+  ["2026-01-08",187.5,183.0,166.0,129.45],
+  ["2026-01-09",187.5,183.0,166.0,130.5],
+  ["2026-01-10",187.5,183.0,166.0,130.5],
+  ["2026-01-11",187.5,183.0,166.0,130.5],
+  ["2026-01-12",187.5,183.0,166.5,130.5],
+  ["2026-01-13",188.0,183.5,167.0,130.5],
+  ["2026-01-14",189.0,184.0,168.0,131.05],
+  ["2026-01-15",190.0,185.0,168.0,131.05],
+  ["2026-01-16",190.5,185.0,168.5,131.55],
+  ["2026-01-17",191.0,186.0,168.5,131.55],
+  ["2026-01-18",191.0,186.0,168.5,131.55],
+  ["2026-01-19",192.0,187.0,170.0,132.1],
+  ["2026-01-20",193.0,188.0,171.0,132.6],
+  ["2026-01-21",194.0,189.0,172.0,133.15],
+  ["2026-01-22",196.0,191.0,173.0,134.2],
+  ["2026-01-23",198.0,193.0,175.0,135.25],
+  ["2026-01-24",200.0,195.0,175.0,135.25],
+  ["2026-01-25",200.0,195.0,175.0,135.25],
+  ["2026-01-26",200.0,195.0,175.0,135.25],
+  ["2026-01-27",200.5,195.5,177.0,135.8],
+  ["2026-01-28",200.5,195.5,178.0,136.3],
+  ["2026-01-29",201.5,196.5,179.0,136.85],
+  ["2026-01-30",202.5,197.5,180.0,136.85],
+  ["2026-01-31",203.0,198.0,180.0,136.85],
+  ["2026-02-01",203.0,198.0,180.0,136.85],
+  ["2026-02-02",204.0,199.0,181.0,136.85],
+  ["2026-02-03",204.5,199.5,182.0,136.85],
+  ["2026-02-04",205.5,200.5,183.0,137.9],
+  ["2026-02-05",206.5,201.5,184.0,137.9],
+  ["2026-02-06",207.0,202.0,185.0,137.9],
+  ["2026-02-07",207.0,202.0,185.0,137.9],
+  ["2026-02-08",207.0,202.0,185.0,137.9],
+  ["2026-02-09",207.5,202.5,185.0,137.9],
+  ["2026-02-10",208.5,203.5,187.0,138.45],
+  ["2026-02-11",209.5,204.0,188.0,139.5],
+  ["2026-02-12",210.0,204.5,188.5,139.5],
+  ["2026-02-13",211.0,205.5,189.5,140.55],
+  ["2026-02-14",213.0,207.5,189.5,140.55],
+  ["2026-02-15",213.0,207.5,189.5,140.55],
+  ["2026-02-16",213.0,208.5,190.5,141.6],
+  ["2026-02-17",213.0,209.0,192.0,142.65],
+  ["2026-02-18",213.5,209.5,192.0,142.65],
+  ["2026-02-19",214.5,210.5,192.0,144.75],
+  ["2026-02-20",215.5,210.5,193.0,146.9],
+  ["2026-02-21",216.0,211.0,193.0,146.9],
+  ["2026-02-22",216.0,211.0,193.0,146.9],
+  ["2026-02-23",217.0,212.0,194.0,147.95],
+  ["2026-02-24",219.0,214.0,195.0,149.0],
+  ["2026-02-25",221.0,216.0,198.0,150.05],
+  ["2026-02-26",221.0,216.0,199.0,150.05],
+  ["2026-02-27",221.0,216.0,199.0,150.05],
+  ["2026-02-28",221.0,216.0,199.0,150.05],
+  ["2026-03-01",221.0,216.0,199.0,150.05],
+  ["2026-03-02",221.0,216.0,198.0,150.05],
+  ["2026-03-03",220.0,215.0,196.0,149.0],
+  ["2026-03-04",219.0,214.0,195.0,147.95],
+  ["2026-03-05",218.0,213.0,194.0,147.4],
+  ["2026-03-06",217.0,212.0,192.0,146.9],
+  ["2026-03-07",216.0,211.0,192.0,146.9],
+  ["2026-03-08",216.0,211.0,192.0,146.9],
+  ["2026-03-09",216.0,211.0,191.0,144.75],
+  ["2026-03-10",215.0,210.0,189.0,144.75],
+  ["2026-03-11",215.0,210.0,188.0,144.75],
+  ["2026-03-12",215.5,210.5,188.0,145.8],
+  ["2026-03-13",215.5,210.5,188.0,146.9],
+  ["2026-03-14",216.0,211.0,188.0,146.9],
+  ["2026-03-15",216.0,211.0,188.0,146.9],
+  ["2026-03-16",216.5,211.5,188.0,149.0],
+  ["2026-03-17",217.0,212.0,186.0,151.1],
+  ["2026-03-18",217.0,212.0,186.0,152.15],
+  ["2026-03-19",217.0,212.0,185.0,152.15],
+  ["2026-03-20",217.0,212.0,185.0,152.15],
+  ["2026-03-21",217.0,212.0,185.0,152.15],
+  ["2026-03-22",217.0,212.0,185.0,152.15],
+  ["2026-03-23",217.0,212.0,185.0,152.15],
+  ["2026-03-24",217.5,212.5,185.0,152.15],
+  ["2026-03-25",218.5,213.5,185.0,151.1],
+  ["2026-03-26",218.5,214.0,186.0,151.1],
+  ["2026-03-27",219.5,215.0,186.0,152.15],
+  ["2026-03-28",220.0,216.0,186.0,152.15],
+  ["2026-03-29",220.0,216.0,186.0,152.15],
+  ["2026-03-30",221.0,217.0,187.0,153.2],
+  ["2026-03-31",222.0,218.0,188.0,154.3],
+  ["2026-04-01",224.0,220.0,189.0,155.35],
+  ["2026-04-02",226.0,222.0,190.0,155.35],
+  ["2026-04-03",226.0,222.0,190.0,155.35],
+  ["2026-04-04",228.0,224.0,190.0,155.35],
+  ["2026-04-05",228.0,224.0,190.0,155.35],
+  ["2026-04-06",229.0,225.0,192.0,156.4],
+  ["2026-04-07",231.0,226.0,195.0,158.5],
+  ["2026-04-08",231.0,227.0,198.0,158.5],
+  ["2026-04-09",231.0,227.0,198.0,158.5],
+  ["2026-04-10",231.0,227.0,199.0,158.5],
+  ["2026-04-11",231.0,227.0,199.0,158.5],
+  ["2026-04-12",231.0,227.0,199.0,158.5],
+  ["2026-04-13",231.0,227.0,199.0,158.5],
+  ["2026-04-14",231.0,227.0,199.0,158.5],
+  ["2026-04-15",231.0,227.0,199.0,158.5],
+  ["2026-04-16",231.0,227.0,199.0,158.5],
+  ["2026-04-17",231.5,227.0,199.0,158.5],
+  ["2026-04-18",232.0,227.5,199.0,158.5],
+  ["2026-04-19",232.0,227.5,199.0,158.5],
+  ["2026-04-20",233.0,228.5,200.0,158.5],
+  ["2026-04-21",234.0,230.0,201.0,158.5],
+  ["2026-04-22",236.0,232.0,203.0,158.5],
+  ["2026-04-23",238.0,234.0,204.0,159.55],
+  ["2026-04-24",240.0,236.0,205.0,159.55],
+];
+
+// ======== Storage ========
+const KEY = 'hrtc.v2';
+function load() {
+  const raw = localStorage.getItem(KEY);
+  if (raw) try { return JSON.parse(raw); } catch(e) {}
+  return {
+    warehouses: [{ id: 1, name: 'Kottayam Main', city: 'Kottayam' }],
+    suppliers: [], customers: [], purchases: [], sales: [], payments: [], movements: [], priceOverrides: [],
+    alerts: [], internationalPrices: [], newsCache: [], aiSummaries: [],
+    settings: { apiKey: '', email: '', whatsapp: '', pin: '' },
+    nextId: { warehouse: 2, supplier: 1, customer: 1, purchase: 1, sale: 1, payment: 1, movement: 1, alert: 1 },
+  };
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+function nextId(type) { const n = state.nextId[type] || 1; state.nextId[type] = n + 1; return n; }
+let state = load();
+
+const GRADES = ['RSS4', 'RSS5', 'ISNR20', 'Latex'];
+const GRADE_COLORS = { RSS4: '#1a73e8', RSS5: '#0a8a3a', ISNR20: '#b08800', Latex: '#c0392b' };
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+// ======== Helpers ========
+function inr(n) { if (n == null || isNaN(n)) return '-'; return '₹' + Number(n).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+function inrShort(n) {
+  if (n == null || isNaN(n)) return '-';
+  const x = Number(n);
+  if (Math.abs(x) >= 10000000) return '₹' + (x/10000000).toFixed(2) + ' Cr';
+  if (Math.abs(x) >= 100000) return '₹' + (x/100000).toFixed(2) + ' L';
+  if (Math.abs(x) >= 1000) return '₹' + (x/1000).toFixed(1) + 'k';
+  return '₹' + x.toFixed(0);
+}
+function kg(n) { if (n == null || isNaN(n)) return '-'; return Number(n).toLocaleString('en-IN', {maximumFractionDigits:1}) + ' kg'; }
+function fmtDate(s) { if (!s) return '-'; return new Date(s).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}); }
+function fmtDateShort(s) { if (!s) return '-'; return new Date(s).toLocaleDateString('en-IN', {day:'numeric',month:'short'}); }
+function todayISO() { return new Date().toISOString().slice(0,10); }
+
+function showToast(msg, kind) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (kind === 'error' ? 'error' : '');
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+// ======== Inventory engine ========
+function getInventoryRow(gradeCode, warehouseId) {
+  const movs = state.movements.filter(m => m.grade === gradeCode && m.warehouse_id === Number(warehouseId));
+  let runningQty = 0, runningAvg = 0;
+  for (const m of movs) {
+    if (m.qty > 0) {
+      const newQty = runningQty + m.qty;
+      runningAvg = newQty > 0 ? (runningQty * runningAvg + m.qty * m.rate) / newQty : 0;
+      runningQty = newQty;
+    } else { runningQty += m.qty; }
+  }
+  return { quantity_kg: runningQty, avg_cost_per_kg: runningAvg };
+}
+function getAllInventory() {
+  const result = [];
+  for (const w of state.warehouses) {
+    for (const g of GRADES) {
+      const row = getInventoryRow(g, w.id);
+      if (row.quantity_kg > 0.001) {
+        const market = latestPriceFor(g);
+        result.push({
+          grade: g, warehouse_id: w.id, warehouse: w.name,
+          quantity_kg: row.quantity_kg, avg_cost_per_kg: row.avg_cost_per_kg,
+          latest_market: market,
+          value_at_cost: row.quantity_kg * row.avg_cost_per_kg,
+          value_at_market: row.quantity_kg * (market || 0),
+        });
+      }
+    }
+  }
+  return result;
+}
+
+// ======== Prices ========
+function getAllPrices() {
+  const map = {};
+  for (const r of HISTORIC_PRICES) map[r[0]] = { date: r[0], RSS4: r[1], RSS5: r[2], ISNR20: r[3], Latex: r[4] };
+  for (const o of state.priceOverrides) {
+    if (!map[o.date]) map[o.date] = { date: o.date };
+    map[o.date][o.grade] = Number(o.price);
+  }
+  return Object.values(map).sort((a,b) => a.date.localeCompare(b.date));
+}
+function latestPriceFor(grade) {
+  const all = getAllPrices();
+  for (let i = all.length - 1; i >= 0; i--) if (all[i][grade] != null) return all[i][grade];
+  return 0;
+}
+function latestRow() { const all = getAllPrices(); return all[all.length - 1]; }
+
+// ======== Alerts engine ========
+function checkAlerts(grade, newPrice) {
+  for (const a of state.alerts) {
+    if (a.triggered_at || !a.active) continue;
+    if (a.grade !== grade) continue;
+    const hit = (a.condition === 'above' && newPrice >= a.target) || (a.condition === 'below' && newPrice <= a.target);
+    if (!hit) continue;
+    a.triggered_at = new Date().toISOString();
+    notify(`Price alert: ${grade}`, `${grade} hit ₹${newPrice} (target was ${a.condition} ₹${a.target})`);
+  }
+  save();
+}
+function notify(title, body) {
+  if (typeof Notification === 'undefined') { alert(`${title}\n${body}`); return; }
+  if (Notification.permission === 'granted') new Notification(title, { body });
+  else if (Notification.permission !== 'denied')
+    Notification.requestPermission().then(p => { if (p === 'granted') new Notification(title, { body }); });
+  else alert(`${title}\n${body}`);
+}
+
+</script>
+<script>
+document.querySelectorAll('aside nav a').forEach(a => {
+  a.onclick = () => {
+    document.querySelectorAll('aside nav a').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    a.classList.add('active');
+    document.getElementById('page-' + a.dataset.page).classList.add('active');
+    renderPage(a.dataset.page);
+  };
+});
+function renderPage(name) {
+  const fn = { dashboard: renderDashboard, inventory: renderInventory, suppliers: renderSuppliers,
+    customers: renderCustomers, purchases: renderPurchases, sales: renderSales,
+    payments: renderPayments, prices: renderPrices, markets: renderMarkets,
+    news: renderNews, reports: renderReports, alerts: renderAlerts, settings: renderSettings }[name];
+  if (fn) fn();
+}
+
+function renderDashboard() {
+  document.getElementById('todayDate').textContent = 'Today, ' + fmtDate(todayISO());
+  // Show latest AI summary if any
+  const today = todayISO();
+  const summary = state.aiSummaries.find(s => s.date === today);
+  document.getElementById('dashAiCard').innerHTML = summary ?
+    `<div class="ai-narrative"><h3>AI briefing - ${fmtDate(summary.date)}</h3><p>${summary.text}</p></div>` :
+    `<div class="info">No AI briefing yet. <a href="#" onclick="document.querySelector('aside nav a[data-page=reports]').click();return false" style="color:#1a73e8">Go to Reports</a> to generate one.</div>`;
+
+  const todaySales = state.sales.filter(s => s.date === today).reduce((s,x)=>s+x.total,0);
+  const todayPurch = state.purchases.filter(p => p.date === today).reduce((s,x)=>s+x.total,0);
+  const inv = getAllInventory();
+  const totalKg = inv.reduce((s,x)=>s+x.quantity_kg,0);
+  const cost = inv.reduce((s,x)=>s+x.value_at_cost,0);
+  const market = inv.reduce((s,x)=>s+x.value_at_market,0);
+  const receivables = state.sales.filter(s=>s.paid<s.total).reduce((s,x)=>s+(x.total-x.paid),0);
+  const payables = state.purchases.filter(p=>p.paid<p.total).reduce((s,x)=>s+(x.total-x.paid),0);
+
+  document.getElementById('dashTiles').innerHTML = `
+    <div class="tile"><div class="tlabel">Today's Sales</div><div class="tval">${inrShort(todaySales)}</div><div class="tsub">${state.sales.filter(s=>s.date===today).length} bills</div></div>
+    <div class="tile"><div class="tlabel">Today's Purchases</div><div class="tval">${inrShort(todayPurch)}</div><div class="tsub">${state.purchases.filter(p=>p.date===today).length} bills</div></div>
+    <div class="tile"><div class="tlabel">Receivables</div><div class="tval ${receivables>0?'bad':''}">${inrShort(receivables)}</div></div>
+    <div class="tile"><div class="tlabel">Payables</div><div class="tval">${inrShort(payables)}</div></div>
+    <div class="tile"><div class="tlabel">Stock value</div><div class="tval">${inrShort(market)}</div><div class="tsub">${kg(totalKg)} • cost ${inrShort(cost)}</div></div>
+  `;
+
+  const last = latestRow();
+  document.getElementById('dashLatest').innerHTML = last ?
+    `<div class="tiles" style="margin:0">
+      ${GRADES.map(g => `<div class="tile"><div class="tlabel">${g}</div><div class="tval" style="color:${GRADE_COLORS[g]}">${inr(last[g])}</div><div class="tsub">${fmtDate(last.date)}</div></div>`).join('')}
+    </div>` : `<div class="empty">No price data.</div>`;
+
+  const recent = [];
+  state.sales.slice(-5).reverse().forEach(s => recent.push({ when: s.date, what: 'Sale', who: customerById(s.customer_id)?.name || '—', amt: s.total }));
+  state.purchases.slice(-5).reverse().forEach(p => recent.push({ when: p.date, what: 'Purchase', who: supplierById(p.supplier_id)?.name || '—', amt: p.total }));
+  state.payments.slice(-5).reverse().forEach(p => recent.push({ when: p.date, what: p.type === 'received' ? 'Payment in' : 'Payment out', who: '—', amt: p.amount }));
+  recent.sort((a,b) => b.when.localeCompare(a.when));
+  document.getElementById('dashActivity').innerHTML = recent.length === 0 ?
+    `<div class="empty">No activity yet. Add a supplier and record a purchase to get started.</div>` :
+    `<table><thead><tr><th>Date</th><th>Type</th><th>Party</th><th class="right">Amount</th></tr></thead><tbody>` +
+    recent.slice(0, 10).map(r => `<tr><td>${fmtDate(r.when)}</td><td>${r.what}</td><td>${r.who}</td><td class="right">${inrShort(r.amt)}</td></tr>`).join('') + `</tbody></table>`;
+}
+
+function renderInventory() {
+  const inv = getAllInventory();
+  const totalKg = inv.reduce((s,x)=>s+x.quantity_kg,0);
+  const cost = inv.reduce((s,x)=>s+x.value_at_cost,0);
+  const market = inv.reduce((s,x)=>s+x.value_at_market,0);
+
+  document.getElementById('invTiles').innerHTML = `
+    <div class="tile"><div class="tlabel">Total stock</div><div class="tval">${kg(totalKg)}</div></div>
+    <div class="tile"><div class="tlabel">At market</div><div class="tval">${inrShort(market)}</div></div>
+    <div class="tile"><div class="tlabel">At cost</div><div class="tval">${inrShort(cost)}</div></div>
+  `;
+  const byGrade = {};
+  for (const r of inv) {
+    if (!byGrade[r.grade]) byGrade[r.grade] = { grade: r.grade, qty: 0, cost: 0, market: 0 };
+    byGrade[r.grade].qty += r.quantity_kg;
+    byGrade[r.grade].cost += r.value_at_cost;
+    byGrade[r.grade].market += r.value_at_market;
+  }
+  document.getElementById('invByGrade').innerHTML = `
+    <thead><tr><th>Grade</th><th class="right">Quantity</th><th class="right">At cost</th><th class="right">At market</th></tr></thead>
+    <tbody>${Object.values(byGrade).map(g =>
+      `<tr><td><strong>${g.grade}</strong></td><td class="right">${kg(g.qty)}</td><td class="right">${inrShort(g.cost)}</td><td class="right"><strong>${inrShort(g.market)}</strong></td></tr>`
+    ).join('') || `<tr><td colspan="4" class="empty">No stock yet.</td></tr>`}</tbody>`;
+  document.getElementById('invByWarehouse').innerHTML = `
+    <thead><tr><th>Grade</th><th>Warehouse</th><th class="right">Qty</th><th class="right">Avg cost</th><th class="right">Market</th><th class="right">Value</th></tr></thead>
+    <tbody>${inv.map(r =>
+      `<tr><td><strong>${r.grade}</strong></td><td>${r.warehouse}</td><td class="right">${kg(r.quantity_kg)}</td><td class="right">${inr(r.avg_cost_per_kg)}</td><td class="right">${inr(r.latest_market)}</td><td class="right"><strong>${inrShort(r.value_at_market)}</strong></td></tr>`
+    ).join('') || `<tr><td colspan="6" class="empty">No stock.</td></tr>`}</tbody>`;
+  const movs = state.movements.slice(-15).reverse();
+  document.getElementById('invMovements').innerHTML = `
+    <thead><tr><th>Date</th><th>Type</th><th>Grade</th><th>Warehouse</th><th class="right">Qty</th><th class="right">Rate</th></tr></thead>
+    <tbody>${movs.map(m => {
+      const wh = state.warehouses.find(w => w.id === m.warehouse_id)?.name || '—';
+      return `<tr><td>${fmtDate(m.date)}</td><td><span class="badge ${m.qty>0?'badge-good':'badge-bad'}">${m.type}</span></td><td>${m.grade}</td><td>${wh}</td><td class="right">${kg(Math.abs(m.qty))} ${m.qty<0?'OUT':'IN'}</td><td class="right">${m.rate?inr(m.rate):'—'}</td></tr>`;
+    }).join('') || `<tr><td colspan="6" class="empty">No movements.</td></tr>`}</tbody>`;
+}
+
+function supplierById(id) { return state.suppliers.find(s => s.id === Number(id)); }
+function customerById(id) { return state.customers.find(c => c.id === Number(id)); }
+
+function renderSuppliers() {
+  document.getElementById('suppliersTable').innerHTML = `
+    <thead><tr><th>Name</th><th>City</th><th>Phone</th><th>GST</th><th class="right">Outstanding</th><th></th></tr></thead>
+    <tbody>${state.suppliers.map(s => {
+      const out = state.purchases.filter(p => p.supplier_id === s.id).reduce((sum,p) => sum + (p.total - p.paid), 0);
+      return `<tr><td><strong>${s.name}</strong></td><td>${s.city||'—'}</td><td>${s.phone||'—'}</td><td>${s.gst||'—'}</td><td class="right">${out>0?'<span class="bad">'+inrShort(out)+'</span>':'<span class="good">paid</span>'}</td><td><button class="btn btn-danger" onclick="deleteParty('supplier',${s.id})" style="padding:4px 8px">×</button></td></tr>`;
+    }).join('') || `<tr><td colspan="6" class="empty">No suppliers yet.</td></tr>`}</tbody>`;
+}
+function renderCustomers() {
+  document.getElementById('customersTable').innerHTML = `
+    <thead><tr><th>Name</th><th>City</th><th>Phone</th><th>GST</th><th class="right">Outstanding</th><th></th></tr></thead>
+    <tbody>${state.customers.map(c => {
+      const out = state.sales.filter(s => s.customer_id === c.id).reduce((sum,s) => sum + (s.total - s.paid), 0);
+      return `<tr><td><strong>${c.name}</strong></td><td>${c.city||'—'}</td><td>${c.phone||'—'}</td><td>${c.gst||'—'}</td><td class="right">${out>0?'<span class="bad">'+inrShort(out)+'</span>':'<span class="good">paid</span>'}</td><td><button class="btn btn-danger" onclick="deleteParty('customer',${c.id})" style="padding:4px 8px">×</button></td></tr>`;
+    }).join('') || `<tr><td colspan="6" class="empty">No customers yet.</td></tr>`}</tbody>`;
+}
+function deleteParty(kind, id) {
+  if (kind === 'supplier' && state.purchases.some(p => p.supplier_id === id)) { showToast("Can't delete - has purchases", 'error'); return; }
+  if (kind === 'customer' && state.sales.some(s => s.customer_id === id)) { showToast("Can't delete - has sales", 'error'); return; }
+  if (!confirm('Delete?')) return;
+  if (kind === 'supplier') state.suppliers = state.suppliers.filter(s => s.id !== id);
+  else state.customers = state.customers.filter(c => c.id !== id);
+  save(); kind === 'supplier' ? renderSuppliers() : renderCustomers();
+}
+
+function renderPurchases() {
+  document.getElementById('purchasesTable').innerHTML = `
+    <thead><tr><th>Date</th><th>Invoice</th><th>Supplier</th><th class="right">Total</th><th class="right">Pending</th><th>Status</th></tr></thead>
+    <tbody>${state.purchases.slice().reverse().map(p => {
+      const sup = supplierById(p.supplier_id)?.name || '—';
+      const status = p.paid >= p.total ? 'good' : p.paid > 0 ? 'warn' : 'bad';
+      const label = p.paid >= p.total ? 'paid' : p.paid > 0 ? 'partial' : 'pending';
+      return `<tr><td>${fmtDate(p.date)}</td><td>${p.invoice||'—'}</td><td><strong>${sup}</strong></td><td class="right">${inrShort(p.total)}</td><td class="right">${inrShort(p.total-p.paid)}</td><td><span class="badge badge-${status}">${label}</span></td></tr>`;
+    }).join('') || `<tr><td colspan="6" class="empty">No purchases yet. Click "+ New purchase".</td></tr>`}</tbody>`;
+}
+function renderSales() {
+  document.getElementById('salesTable').innerHTML = `
+    <thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th class="right">Total</th><th class="right">Margin</th><th class="right">Pending</th><th>Status</th></tr></thead>
+    <tbody>${state.sales.slice().reverse().map(s => {
+      const c = customerById(s.customer_id)?.name || '—';
+      const status = s.paid >= s.total ? 'good' : s.paid > 0 ? 'warn' : 'bad';
+      const label = s.paid >= s.total ? 'paid' : s.paid > 0 ? 'partial' : 'pending';
+      const margin = (s.items||[]).reduce((sum,i)=>sum+((i.rate-(i.cost||0))*i.qty),0);
+      return `<tr><td>${fmtDate(s.date)}</td><td>${s.invoice||'—'}</td><td><strong>${c}</strong></td><td class="right">${inrShort(s.total)}</td><td class="right ${margin>=0?'good':'bad'}">${inrShort(margin)}</td><td class="right">${inrShort(s.total-s.paid)}</td><td><span class="badge badge-${status}">${label}</span></td></tr>`;
+    }).join('') || `<tr><td colspan="7" class="empty">No sales yet.</td></tr>`}</tbody>`;
+}
+function renderPayments() {
+  document.getElementById('paymentsTable').innerHTML = `
+    <thead><tr><th>Date</th><th>Type</th><th>Party</th><th>Mode</th><th>Reference</th><th class="right">Amount</th></tr></thead>
+    <tbody>${state.payments.slice().reverse().map(p => {
+      const party = p.party_type === 'customer' ? (customerById(p.party_id)?.name || '—') : (supplierById(p.party_id)?.name || '—');
+      const arrow = p.type === 'received' ? '<span class="badge badge-good">⬇ received</span>' : '<span class="badge badge-warn">⬆ paid</span>';
+      return `<tr><td>${fmtDate(p.date)}</td><td>${arrow}</td><td>${party}</td><td>${p.mode||'—'}</td><td>${p.ref||'—'}</td><td class="right"><strong>${inrShort(p.amount)}</strong></td></tr>`;
+    }).join('') || `<tr><td colspan="6" class="empty">No payments yet.</td></tr>`}</tbody>`;
+}
+
+</script>
+<script>
+
+let priceChart = null;
+function renderPrices() {
+  const last = latestRow();
+  document.getElementById('priceTiles').innerHTML = last ? GRADES.map(g =>
+    `<div class="tile"><div class="tlabel">${g}</div><div class="tval" style="color:${GRADE_COLORS[g]}">${inr(last[g])}</div><div class="tsub">${fmtDate(last.date)}</div></div>`
+  ).join('') : '';
+  const all = getAllPrices();
+  if (all.length === 0) return;
+  const lastDate = all[all.length - 1].date;
+  const fromDefault = new Date(lastDate);
+  fromDefault.setMonth(fromDefault.getMonth() - 3);
+  if (!document.getElementById('chartFrom').value) document.getElementById('chartFrom').value = fromDefault.toISOString().slice(0,10);
+  if (!document.getElementById('chartTo').value) document.getElementById('chartTo').value = lastDate;
+  if (!document.getElementById('priceDate').value) document.getElementById('priceDate').value = todayISO();
+  renderChart();
+}
+
+function renderChart() {
+  const period = document.getElementById('chartPeriod').value;
+  const from = document.getElementById('chartFrom').value;
+  const to = document.getElementById('chartTo').value;
+  const all = getAllPrices().filter(r => (!from || r.date >= from) && (!to || r.date <= to));
+  let buckets;
+  if (period === 'daily') buckets = all;
+  else {
+    const map = {};
+    for (const r of all) {
+      const d = new Date(r.date);
+      const key = period === 'weekly'
+        ? new Date(d.setDate(d.getDate() - d.getDay() + 1)).toISOString().slice(0,10)
+        : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+      if (!map[key]) map[key] = { date: key, RSS4:[], RSS5:[], ISNR20:[], Latex:[] };
+      for (const g of GRADES) if (r[g] != null) map[key][g].push(r[g]);
+    }
+    buckets = Object.values(map).map(b => ({
+      date: b.date,
+      RSS4: b.RSS4.length ? b.RSS4.reduce((s,n)=>s+n,0)/b.RSS4.length : null,
+      RSS5: b.RSS5.length ? b.RSS5.reduce((s,n)=>s+n,0)/b.RSS5.length : null,
+      ISNR20: b.ISNR20.length ? b.ISNR20.reduce((s,n)=>s+n,0)/b.ISNR20.length : null,
+      Latex: b.Latex.length ? b.Latex.reduce((s,n)=>s+n,0)/b.Latex.length : null,
+    })).sort((a,b)=>a.date.localeCompare(b.date));
+  }
+  const ctx = document.getElementById('priceChart');
+  if (priceChart) priceChart.destroy();
+  priceChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: buckets.map(b => b.date), datasets: GRADES.map(g => ({
+      label: g, data: buckets.map(b => b[g]),
+      borderColor: GRADE_COLORS[g], backgroundColor: GRADE_COLORS[g] + '20',
+      tension: 0.2, pointRadius: 0, borderWidth: 2,
+    })) },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ₹${c.parsed.y?.toFixed(2)}` } } },
+      scales: { x: { ticks: { maxTicksLimit: 12 } }, y: { ticks: { callback: v => '₹' + v } } },
+    },
+  });
+}
+
+function addPrice(e) {
+  e.preventDefault();
+  const grade = document.getElementById('priceGrade').value;
+  const date = document.getElementById('priceDate').value;
+  const price = Number(document.getElementById('priceVal').value);
+  if (!date || !price) return;
+  state.priceOverrides.push({ grade, date, price });
+  save();
+  document.getElementById('priceVal').value = '';
+  checkAlerts(grade, price);
+  renderPrices();
+  showToast(`${grade} ₹${price} on ${date} saved`);
+}
+
+// Fetch today's Rubber Board prices via CORS proxy
+async function fetchTodayPrices() {
+  const status = document.getElementById('priceFetchStatus') || document.body.appendChild(document.createElement('div'));
+  status.innerHTML = '<div class="info">Fetching from Rubber Board website... (via CORS proxy)</div>';
+  try {
+    const url = encodeURIComponent('https://rubberboard.org.in/public');
+    const res = await fetch(CORS_PROXY + url);
+    if (!res.ok) throw new Error('Proxy returned ' + res.status);
+    const html = await res.text();
+    // Parse the HTML for prices. The Rubber Board page format varies; this is best-effort.
+    const found = parsePricesFromHtml(html);
+    if (Object.keys(found).length === 0) {
+      status.innerHTML = '<div class="warning">Could not find prices on Rubber Board page. The page format may have changed. Use manual entry below.</div>';
+      return;
+    }
+    const today = todayISO();
+    let saved = 0;
+    for (const [grade, price] of Object.entries(found)) {
+      state.priceOverrides.push({ grade, date: today, price });
+      checkAlerts(grade, price);
+      saved++;
+    }
+    save();
+    status.innerHTML = `<div class="success-banner">Fetched ${saved} prices for ${today}: ${Object.entries(found).map(([g,p])=>`${g} ₹${p}`).join(', ')}</div>`;
+    renderPrices();
+    if (document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  } catch (e) {
+    status.innerHTML = `<div class="warning">Auto-fetch failed: ${e.message}. The Rubber Board site may be down or the proxy unreachable. Use manual entry below.</div>`;
+  }
+}
+function parsePricesFromHtml(html) {
+  const result = {};
+  // Look for "RSS 4" / "RSS-4" etc. followed by a number
+  const aliases = { RSS4: ['RSS 4','RSS-4','RSS4'], RSS5: ['RSS 5','RSS-5','RSS5'], ISNR20: ['ISNR 20','ISNR-20','ISNR20'], Latex: ['LATEX','Latex','60% latex'] };
+  for (const [code, names] of Object.entries(aliases)) {
+    for (const name of names) {
+      const re = new RegExp(name + '[^0-9]{1,30}([0-9]{2,4}(?:\\.[0-9]+)?)', 'i');
+      const m = html.match(re);
+      if (m) {
+        const val = parseFloat(m[1]);
+        if (val > 50 && val < 1000) { result[code] = val; break; }
+      }
+    }
+  }
+  return result;
+}
+
+// ======== MARKETS (Yahoo Finance) ========
+async function renderMarkets() {
+  const tickers = [
+    { code: 'BRENT', name: 'Brent Crude Oil', ticker: 'BZ=F', currency: 'USD', unit: 'barrel' },
+    { code: 'WTI', name: 'WTI Crude Oil', ticker: 'CL=F', currency: 'USD', unit: 'barrel' },
+    { code: 'USD_INR', name: 'USD / INR', ticker: 'INR=X', currency: 'INR', unit: 'per USD' },
+  ];
+  document.getElementById('marketsContent').innerHTML = `
+    <div class="card"><h2>Latest <button class="btn-primary btn" onclick="renderMarkets()">↻ Refresh</button></h2><div id="marketsTiles"><div class="empty">Loading...</div></div></div>`;
+  try {
+    const out = [];
+    for (const t of tickers) {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(t.ticker)}?interval=1d&range=5d`;
+      const proxied = CORS_PROXY + encodeURIComponent(url);
+      const res = await fetch(proxied);
+      if (!res.ok) { out.push({ ...t, error: 'fetch failed' }); continue; }
+      const data = await res.json();
+      const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+      const ts = data?.chart?.result?.[0]?.timestamp || [];
+      let price = null, date = null;
+      for (let i = closes.length - 1; i >= 0; i--) {
+        if (closes[i] != null && Number.isFinite(closes[i])) { price = closes[i]; date = new Date(ts[i]*1000).toISOString().slice(0,10); break; }
+      }
+      out.push({ ...t, price, date });
+    }
+    state.internationalPrices = out;
+    save();
+    document.getElementById('marketsTiles').innerHTML = `
+      <div class="tiles">${out.map(m => m.error ?
+        `<div class="tile"><div class="tlabel">${m.name}</div><div class="warn">Fetch failed</div></div>` :
+        `<div class="tile"><div class="tlabel">${m.name}</div><div class="tval">${Number(m.price).toFixed(2)} <span style="font-size:11px;color:#6b7280">${m.currency}/${m.unit}</span></div><div class="tsub">As of ${fmtDate(m.date)}</div></div>`
+      ).join('')}</div>`;
+  } catch (e) {
+    document.getElementById('marketsTiles').innerHTML = `<div class="warning">Error: ${e.message}</div>`;
+  }
+}
+
+// ======== NEWS (RSS via rss2json) ========
+async function fetchNews() {
+  const target = document.getElementById('newsContent');
+  target.innerHTML = '<div class="empty">Fetching news...</div>';
+  const feeds = [
+    { url: 'https://www.thehindubusinessline.com/markets/commodities/feeder/default.rss', source: 'BusinessLine', cat: 'rubber' },
+    { url: 'https://oilprice.com/rss/main', source: 'OilPrice', cat: 'crude_oil' },
+    { url: 'https://www.thehindubusinessline.com/economy/agri-business/feeder/default.rss', source: 'Agri-Biz', cat: 'weather' },
+  ];
+  const all = [];
+  for (const f of feeds) {
+    try {
+      const proxy = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(f.url)}`;
+      const res = await fetch(proxy);
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const item of (data.items || []).slice(0, 6)) {
+        all.push({ title: item.title, link: item.link, pubDate: item.pubDate, source: f.source, cat: f.cat, snippet: (item.description||'').replace(/<[^>]+>/g,'').slice(0,200) });
+      }
+    } catch (e) {}
+  }
+  if (all.length === 0) {
+    target.innerHTML = '<div class="warning">No news fetched. RSS proxy may be down or feeds blocked.</div>';
+    return;
+  }
+  state.newsCache = all;
+  save();
+  target.innerHTML = all.map(n => `
+    <div class="news-item">
+      <h4><a href="${n.link}" target="_blank">${n.title}</a></h4>
+      <div class="meta">${n.source} • ${fmtDate(n.pubDate)} • <span class="badge" style="background:#f3f4f6">${n.cat}</span></div>
+      ${n.snippet ? `<p style="font-size:12px;color:#6b7280;margin-top:6px">${n.snippet}...</p>` : ''}
+    </div>
+  `).join('');
+}
+function renderNews() {
+  if (state.newsCache.length === 0) { document.getElementById('newsContent').innerHTML = '<div class="empty">Click "Fetch news" to load.</div>'; return; }
+  const target = document.getElementById('newsContent');
+  target.innerHTML = state.newsCache.map(n => `
+    <div class="news-item">
+      <h4><a href="${n.link}" target="_blank">${n.title}</a></h4>
+      <div class="meta">${n.source} • ${fmtDate(n.pubDate)} • <span class="badge" style="background:#f3f4f6">${n.cat}</span></div>
+      ${n.snippet ? `<p style="font-size:12px;color:#6b7280;margin-top:6px">${n.snippet}...</p>` : ''}
+    </div>
+  `).join('');
+}
+
+</script>
+<script>
+
+// ======== REPORTS (with AI narrative + send buttons) ========
+function computeWeekly() {
+  const all = getAllPrices();
+  if (all.length < 7) return null;
+  const last = all[all.length - 1];
+  const lastDate = new Date(last.date);
+  const dayOfWeek = lastDate.getDay() || 7;
+  const friday = new Date(lastDate);
+  friday.setDate(lastDate.getDate() - (dayOfWeek - 5 < 0 ? dayOfWeek + 2 : dayOfWeek - 5));
+  if (friday > lastDate) friday.setDate(friday.getDate() - 7);
+  const monday = new Date(friday);
+  monday.setDate(friday.getDate() - 4);
+  const ws = monday.toISOString().slice(0,10);
+  const we = friday.toISOString().slice(0,10);
+  const week = all.filter(r => r.date >= ws && r.date <= we);
+  const summary = GRADES.map(g => {
+    const vals = week.map(w => w[g]).filter(v => v != null);
+    if (vals.length === 0) return null;
+    const open = vals[0], close = vals[vals.length-1];
+    const high = Math.max(...vals), low = Math.min(...vals);
+    const pct = ((close - open) / open) * 100;
+    const trend = pct > 1.5 ? 'Bullish' : pct < -1.5 ? 'Bearish' : 'Sideways';
+    const ma7arr = all.filter(r => r.date <= we).slice(-7).map(r => r[g]).filter(v => v != null);
+    const ma14arr = all.filter(r => r.date <= we).slice(-14).map(r => r[g]).filter(v => v != null);
+    const ma7 = ma7arr.length ? ma7arr.reduce((s,n)=>s+n,0)/ma7arr.length : null;
+    const ma14 = ma14arr.length ? ma14arr.reduce((s,n)=>s+n,0)/ma14arr.length : null;
+    return { grade: g, open, close, high, low, pct, trend, ma7, ma14 };
+  }).filter(Boolean);
+  const rss4 = summary.find(s => s.grade === 'RSS4');
+  let rec = 'WAIT', reason = 'Mixed signals.';
+  if (rss4) {
+    if (rss4.pct < -1.5 && rss4.close < rss4.ma7) { rec = 'BUY'; reason = `RSS4 down ${rss4.pct.toFixed(1)}% and below 7-day MA - possibly oversold.`; }
+    else if (rss4.pct > 2 && rss4.close > rss4.ma7) { rec = 'SELL'; reason = `RSS4 up ${rss4.pct.toFixed(1)}%, above MA - consider booking profits.`; }
+    else { rec = 'WAIT'; reason = `RSS4 ${rss4.trend.toLowerCase()} (${rss4.pct.toFixed(1)}%); no strong signal.`; }
+  }
+  return { ws, we, summary, rec, reason };
+}
+
+function renderReports() {
+  const r = computeWeekly();
+  if (!r) { document.getElementById('weeklyReport').innerHTML = '<div class="empty">Need at least 7 days of price data.</div>'; return; }
+  const recColor = { BUY: '#0a8a3a', SELL: '#c0392b', WAIT: '#b08800' }[r.rec];
+  const aiSummary = state.aiSummaries.find(a => a.date === r.we);
+
+  document.getElementById('weeklyReport').innerHTML = `
+    <div style="margin-bottom:14px"><strong>Week ${fmtDate(r.ws)} to ${fmtDate(r.we)}</strong></div>
+    <div class="row" style="gap:14px;align-items:center;margin-bottom:18px">
+      <div style="background:${recColor};color:#fff;padding:8px 18px;border-radius:6px;font-weight:600;font-size:14px">${r.rec}</div>
+      <div style="font-size:14px;flex:1">${r.reason}</div>
+    </div>
+
+    ${aiSummary ? `<div class="ai-narrative"><h3>AI analysis</h3><p>${aiSummary.text}</p></div>` : ''}
+
+    <table>
+      <thead><tr><th>Grade</th><th class="right">Open</th><th class="right">Close</th><th class="right">High</th><th class="right">Low</th><th class="right">Change %</th><th class="right">7-day MA</th><th class="right">14-day MA</th><th>Trend</th></tr></thead>
+      <tbody>${r.summary.map(s => {
+        const cls = s.pct > 0 ? 'good' : s.pct < 0 ? 'bad' : '';
+        return `<tr><td><strong>${s.grade}</strong></td><td class="right">${inr(s.open)}</td><td class="right">${inr(s.close)}</td><td class="right">${inr(s.high)}</td><td class="right">${inr(s.low)}</td><td class="right ${cls}">${s.pct>=0?'+':''}${s.pct.toFixed(2)}%</td><td class="right">${inr(s.ma7)}</td><td class="right">${inr(s.ma14)}</td><td>${s.trend}</td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    <div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-primary btn" onclick="generateAiSummary()">${aiSummary ? '↻ Regenerate AI analysis' : '✨ Generate AI analysis'}</button>
+      <button class="btn-success btn" onclick="sendByEmail()">📧 Send by email</button>
+      <button class="btn-success btn" onclick="sendByWhatsapp()">📱 Send by WhatsApp</button>
+      <button class="btn" onclick="window.print()">🖨 Print</button>
+    </div>
+    <p style="margin-top:14px;font-size:12px;color:#6b7280">AI analysis uses Claude API. Set your key in Settings. Email opens your default email app, WhatsApp opens WhatsApp Web.</p>
+  `;
+}
+
+async function generateAiSummary() {
+  if (!state.settings.apiKey) { showToast('Set your Anthropic API key in Settings first', 'error'); return; }
+  const r = computeWeekly();
+  if (!r) return;
+  showToast('Calling Claude... this takes 5-15 seconds');
+  const prompt = `You are a market analyst for a small Indian rubber trading company (Hindustan Rubber Trading).
+
+This week's Rubber Board prices (in INR/kg):
+${r.summary.map(s => `- ${s.grade}: opened ${s.open}, closed ${s.close} (${s.pct>=0?'+':''}${s.pct.toFixed(1)}%), high ${s.high}, low ${s.low}, MA7 ${s.ma7?.toFixed(1)}, MA14 ${s.ma14?.toFixed(1)}, trend: ${s.trend}`).join('\n')}
+
+International (latest):
+${(state.internationalPrices||[]).filter(p=>p.price).map(p => `- ${p.name}: ${p.price.toFixed(2)} ${p.currency}`).join('\n') || '(none)'}
+
+News headlines this week:
+${(state.newsCache||[]).slice(0,8).map(n => `- ${n.title} (${n.source})`).join('\n') || '(none)'}
+
+Write a SHORT briefing (under 200 words, plain English):
+1. What moved this week and why (2-3 sentences)
+2. Outlook for next 5-7 trading days (2-3 sentences)
+3. One concrete BUY/WAIT/SELL recommendation with reasoning
+4. Top 2 risk factors
+
+Be direct, mention numbers, no jargon.`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': state.settings.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error('API ' + res.status + ': ' + err.slice(0,200));
+    }
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    // Save and re-render
+    const existingIdx = state.aiSummaries.findIndex(a => a.date === r.we);
+    if (existingIdx >= 0) state.aiSummaries[existingIdx] = { date: r.we, text };
+    else state.aiSummaries.push({ date: r.we, text });
+    save();
+    renderReports();
+    showToast('AI analysis generated');
+  } catch (e) {
+    showToast('Failed: ' + e.message, 'error');
+  }
+}
+
+function buildShareText() {
+  const r = computeWeekly();
+  if (!r) return '';
+  const ai = state.aiSummaries.find(a => a.date === r.we);
+  let text = `*HRTC Weekly Briefing*\n_${r.ws} to ${r.we}_\n\n`;
+  for (const s of r.summary) {
+    const arrow = s.pct > 0 ? '↑' : s.pct < 0 ? '↓' : '→';
+    text += `${arrow} *${s.grade}*: ₹${s.open} → ₹${s.close} (${s.pct>=0?'+':''}${s.pct.toFixed(1)}%)\n`;
+  }
+  text += `\n*Recommendation:* ${r.rec} — ${r.reason}\n`;
+  if (ai) text += `\n*Analysis:*\n${ai.text}\n`;
+  return text;
+}
+function sendByEmail() {
+  const text = buildShareText();
+  const r = computeWeekly();
+  const to = state.settings.email || '';
+  const subject = `HRTC Weekly Briefing ${r.ws} to ${r.we}`;
+  window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+}
+function sendByWhatsapp() {
+  const text = buildShareText();
+  const num = (state.settings.whatsapp || '').replace(/[^0-9+]/g, '');
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+// ======== ALERTS ========
+function renderAlerts() {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  const list = document.getElementById('alertsList');
+  if (state.alerts.length === 0) {
+    list.innerHTML = '<div class="empty">No alerts yet. Click "+ New alert" to add one.</div>';
+    return;
+  }
+  list.innerHTML = `<div class="tiles" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${state.alerts.map(a => `
+    <div class="alert-card">
+      <button onclick="deleteAlert(${a.id})" style="position:absolute;top:8px;right:8px;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px">×</button>
+      <div class="alert-grade">🔔 ${a.grade}</div>
+      <div class="alert-target">${a.condition === 'above' ? '↑' : '↓'} ₹${a.target}</div>
+      <div style="font-size:11px;color:#6b7280">Notify when ${a.condition} ₹${a.target}</div>
+      ${a.triggered_at ? `<div style="margin-top:6px"><span class="badge badge-warn">Triggered ${fmtDate(a.triggered_at)}</span></div>` : `<div style="margin-top:6px"><span class="badge badge-good">Active</span></div>`}
+    </div>
+  `).join('')}</div>`;
+}
+function openAlertModal() {
+  document.getElementById('modalContent').innerHTML = `
+    <div class="header"><h2>New price alert</h2><button class="close" onclick="closeModal()">×</button></div>
+    <div class="body"><form onsubmit="saveAlert(event)">
+      <div class="row">
+        <div class="field"><label>Grade *</label><select id="alertGrade">${GRADES.map(g => `<option>${g}</option>`).join('')}</select></div>
+        <div class="field"><label>Condition</label><select id="alertCond"><option value="above">Goes above</option><option value="below">Goes below</option></select></div>
+        <div class="field"><label>Target price (₹/kg) *</label><input type="number" step="0.01" id="alertTarget" required /></div>
+      </div>
+      <div style="text-align:right;margin-top:14px"><button class="btn-primary btn">Create alert</button></div>
+    </form></div>`;
+  document.getElementById('modalBg').classList.add('active');
+}
+function saveAlert(e) {
+  e.preventDefault();
+  state.alerts.push({
+    id: nextId('alert'),
+    grade: document.getElementById('alertGrade').value,
+    condition: document.getElementById('alertCond').value,
+    target: Number(document.getElementById('alertTarget').value),
+    active: true, triggered_at: null,
+  });
+  save(); closeModal(); renderAlerts();
+  showToast('Alert created');
+}
+function deleteAlert(id) {
+  if (!confirm('Delete alert?')) return;
+  state.alerts = state.alerts.filter(a => a.id !== id);
+  save(); renderAlerts();
+}
+
+// ======== SETTINGS ========
+function renderSettings() {
+  document.getElementById('settingApiKey').value = state.settings.apiKey || '';
+  document.getElementById('settingGithubUrl').value = state.settings.githubUrl || '';
+  document.getElementById('settingEmail').value = state.settings.email || '';
+  document.getElementById('settingWhatsapp').value = state.settings.whatsapp || '';
+  document.getElementById('settingPin').value = state.settings.pin || '';
+}
+function saveSettings() {
+  state.settings.apiKey = document.getElementById('settingApiKey').value;
+  state.settings.githubUrl = document.getElementById('settingGithubUrl').value;
+  state.settings.email = document.getElementById('settingEmail').value;
+  state.settings.whatsapp = document.getElementById('settingWhatsapp').value;
+  state.settings.pin = document.getElementById('settingPin').value;
+  save();
+  showToast('Settings saved');
+}
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `hrtc-backup-${todayISO()}.json`;
+  a.click();
+  showToast('Backup downloaded');
+}
+function importData(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!confirm('This will REPLACE all current data with the backup file. Continue?')) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const obj = JSON.parse(ev.target.result);
+      state = obj; save();
+      showToast('Data imported - reloading'); setTimeout(() => location.reload(), 1000);
+    } catch (err) { showToast('Invalid backup file', 'error'); }
+  };
+  reader.readAsText(file);
+}
+function clearAllData() {
+  if (!confirm('This will DELETE ALL DATA in this browser. Are you sure?')) return;
+  if (!confirm('Last warning - this cannot be undone (unless you exported a backup first).')) return;
+  localStorage.removeItem(KEY);
+  location.reload();
+}
+
+// ======== PIN ========
+function checkPin() {
+  const inp = document.getElementById('pinInput');
+  if (inp.value.length === 4) {
+    if (inp.value === state.settings.pin) {
+      document.getElementById('pinGate').style.display = 'none';
+    } else {
+      document.getElementById('pinHint').textContent = 'Wrong PIN. Try again.';
+      document.getElementById('pinHint').style.color = '#ef9999';
+      inp.value = '';
+    }
+  }
+}
+
+// ======== Saving party (supplier/customer) ========
+function openModal(kind) {
+  const isSupplier = kind === 'supplier';
+  document.getElementById('modalContent').innerHTML = `
+    <div class="header"><h2>New ${kind}</h2><button class="close" onclick="closeModal()">×</button></div>
+    <div class="body"><form onsubmit="saveParty(event,'${kind}')">
+      <div class="row">
+        <div class="field" style="min-width:280px"><label>Name *</label><input id="partyName" required /></div>
+        <div class="field"><label>City</label><input id="partyCity" /></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="field"><label>Phone</label><input id="partyPhone" /></div>
+        <div class="field"><label>GST number</label><input id="partyGst" /></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="field"><label>Credit days</label><input type="number" id="partyCreditDays" value="0" /></div>
+        ${isSupplier?'':'<div class="field"><label>Credit limit (₹)</label><input type="number" id="partyCreditLimit" value="0" /></div>'}
+      </div>
+      <div style="text-align:right;margin-top:16px"><button class="btn-primary btn">Save ${kind}</button></div>
+    </form></div>`;
+  document.getElementById('modalBg').classList.add('active');
+}
+function saveParty(e, kind) {
+  e.preventDefault();
+  const obj = {
+    id: nextId(kind), name: document.getElementById('partyName').value,
+    city: document.getElementById('partyCity').value, phone: document.getElementById('partyPhone').value,
+    gst: document.getElementById('partyGst').value,
+    credit_days: Number(document.getElementById('partyCreditDays').value) || 0,
+  };
+  if (kind === 'customer') obj.credit_limit = Number(document.getElementById('partyCreditLimit').value) || 0;
+  if (kind === 'supplier') state.suppliers.push(obj); else state.customers.push(obj);
+  save(); closeModal();
+  if (kind === 'supplier') renderSuppliers(); else renderCustomers();
+  showToast(`${obj.name} added`);
+}
+function closeModal() { document.getElementById('modalBg').classList.remove('active'); }
+function closeOnBg(e) { if (e.target.id === 'modalBg') closeModal(); }
+
+</script>
+<script>
+
+// ======== Purchase form ========
+let purchaseItems = [];
+function openPurchaseForm() {
+  if (state.suppliers.length === 0) { showToast('Add a supplier first', 'error'); return; }
+  if (state.warehouses.length === 0) { showToast('No warehouses', 'error'); return; }
+  purchaseItems = [{ grade: 'RSS4', warehouse_id: state.warehouses[0].id, qty: '', rate: '', batch: '' }];
+  renderPurchaseModal();
+}
+function renderPurchaseModal() {
+  const today = todayISO();
+  document.getElementById('modalContent').innerHTML = `
+    <div class="header"><h2>New purchase</h2><button class="close" onclick="closeModal()">×</button></div>
+    <div class="body"><form onsubmit="savePurchase(event)">
+      <div class="row">
+        <div class="field"><label>Supplier *</label>
+          <select id="purSupplier" required>${state.suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Invoice #</label><input id="purInvoice" /></div>
+        <div class="field"><label>Date *</label><input type="date" id="purDate" required value="${today}" /></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="field"><label>Lorry number</label><input id="purLorry" placeholder="KL-07-XX-1234" /></div>
+        <div class="field"><label>Driver</label><input id="purDriver" /></div>
+        <div class="field"><label>Freight (₹)</label><input type="number" id="purFreight" value="0" oninput="updatePurchaseTotal()" /></div>
+      </div>
+      <h3 style="margin-top:18px">Items</h3>
+      <div class="itemRow" style="font-weight:600;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px">
+        <div>Grade</div><div>Warehouse</div><div>Qty (kg)</div><div>Rate ₹/kg</div><div>Batch</div><div class="right">Amount</div><div></div>
+      </div>
+      <div id="purchaseRows"></div>
+      <button type="button" class="btn" onclick="addPurchaseRow()" style="margin-top:6px">+ Add row</button>
+      <div class="totals">
+        Items: <strong id="purItemsTotal">₹0</strong> &nbsp;•&nbsp; Freight: <strong id="purFreightTotal">₹0</strong>
+        <div class="grand">Grand total: <span id="purGrand">₹0</span></div>
+      </div>
+      <div style="text-align:right;margin-top:16px"><button class="btn-primary btn">Save purchase</button></div>
+    </form></div>`;
+  renderPurchaseRows();
+  document.getElementById('modalBg').classList.add('active');
+}
+function renderPurchaseRows() {
+  document.getElementById('purchaseRows').innerHTML = purchaseItems.map((it, i) => `
+    <div class="itemRow">
+      <select onchange="updateItem(${i},'grade',this.value);updatePurchaseTotal()">
+        ${GRADES.map(g => `<option ${g===it.grade?'selected':''}>${g}</option>`).join('')}
+      </select>
+      <select onchange="updateItem(${i},'warehouse_id',Number(this.value))">
+        ${state.warehouses.map(w => `<option value="${w.id}" ${w.id===it.warehouse_id?'selected':''}>${w.name}</option>`).join('')}
+      </select>
+      <input type="number" step="0.01" value="${it.qty}" oninput="updateItem(${i},'qty',this.value);updatePurchaseTotal()" />
+      <input type="number" step="0.01" value="${it.rate}" oninput="updateItem(${i},'rate',this.value);updatePurchaseTotal()" />
+      <input value="${it.batch}" oninput="updateItem(${i},'batch',this.value)" placeholder="optional" />
+      <div class="right" id="purAmt${i}"><strong>${inr((Number(it.qty)||0)*(Number(it.rate)||0))}</strong></div>
+      <button type="button" class="btn" onclick="removePurchaseRow(${i})" ${purchaseItems.length===1?'disabled':''} style="padding:4px 8px">×</button>
+    </div>
+  `).join('');
+}
+function updateItem(i, k, v) { purchaseItems[i][k] = v; }
+function addPurchaseRow() { purchaseItems.push({ grade:'RSS4', warehouse_id:state.warehouses[0].id, qty:'', rate:'', batch:'' }); renderPurchaseRows(); updatePurchaseTotal(); }
+function removePurchaseRow(i) { purchaseItems.splice(i,1); renderPurchaseRows(); updatePurchaseTotal(); }
+function updatePurchaseTotal() {
+  let items = 0;
+  purchaseItems.forEach((it,i) => {
+    const a = (Number(it.qty)||0) * (Number(it.rate)||0);
+    items += a;
+    const cell = document.getElementById('purAmt'+i);
+    if (cell) cell.innerHTML = '<strong>' + inr(a) + '</strong>';
+  });
+  const fr = Number(document.getElementById('purFreight')?.value) || 0;
+  document.getElementById('purItemsTotal').textContent = inr(items);
+  document.getElementById('purFreightTotal').textContent = inr(fr);
+  document.getElementById('purGrand').textContent = inr(items + fr);
+}
+function savePurchase(e) {
+  e.preventDefault();
+  const items = purchaseItems.map(it => ({ ...it, qty: Number(it.qty), rate: Number(it.rate) })).filter(it => it.qty > 0 && it.rate > 0);
+  if (items.length === 0) { showToast('Add at least one valid item', 'error'); return; }
+  const itemsTotal = items.reduce((s,i) => s + i.qty * i.rate, 0);
+  const freight = Number(document.getElementById('purFreight').value) || 0;
+  const purchase = {
+    id: nextId('purchase'),
+    supplier_id: Number(document.getElementById('purSupplier').value),
+    invoice: document.getElementById('purInvoice').value,
+    date: document.getElementById('purDate').value,
+    lorry: document.getElementById('purLorry').value, driver: document.getElementById('purDriver').value,
+    freight, items, total: itemsTotal + freight, paid: 0,
+  };
+  state.purchases.push(purchase);
+  for (const it of items) {
+    state.movements.push({
+      id: nextId('movement'), date: purchase.date,
+      grade: it.grade, warehouse_id: it.warehouse_id,
+      qty: it.qty, rate: it.rate, type: 'purchase', ref_id: purchase.id,
+    });
+  }
+  save(); closeModal(); renderPurchases();
+  showToast('Purchase saved (' + inrShort(purchase.total) + ')');
+}
+
+// ======== Sale form ========
+let saleItems = [];
+function openSaleForm() {
+  if (state.customers.length === 0) { showToast('Add a customer first', 'error'); return; }
+  saleItems = [{ grade: 'RSS4', warehouse_id: state.warehouses[0].id, qty: '', rate: '' }];
+  renderSaleModal();
+}
+function renderSaleModal() {
+  const today = todayISO();
+  document.getElementById('modalContent').innerHTML = `
+    <div class="header"><h2>New sale</h2><button class="close" onclick="closeModal()">×</button></div>
+    <div class="body"><form onsubmit="saveSale(event)">
+      <div class="row">
+        <div class="field"><label>Customer *</label>
+          <select id="saleCust" required>${state.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Invoice #</label><input id="saleInvoice" /></div>
+        <div class="field"><label>Date *</label><input type="date" id="saleDate" required value="${today}" /></div>
+      </div>
+      <div id="stockWarn"></div>
+      <h3 style="margin-top:14px">Items</h3>
+      <div class="itemRow" style="font-weight:600;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;grid-template-columns:1.2fr 1.2fr 0.8fr 0.8fr 1fr 0.8fr auto">
+        <div>Grade</div><div>Warehouse</div><div>Qty (kg)</div><div>Rate ₹/kg</div><div>Available / Margin</div><div class="right">Amount</div><div></div>
+      </div>
+      <div id="saleRows"></div>
+      <button type="button" class="btn" onclick="addSaleRow()" style="margin-top:6px">+ Add row</button>
+      <div class="totals"><div class="grand">Grand total: <span id="saleGrand">₹0</span></div></div>
+      <div style="text-align:right;margin-top:16px"><button class="btn-primary btn" id="saleSubmit">Save sale</button></div>
+    </form></div>`;
+  renderSaleRows();
+  document.getElementById('modalBg').classList.add('active');
+}
+function renderSaleRows() {
+  document.getElementById('saleRows').innerHTML = saleItems.map((it, i) => {
+    const inv = getInventoryRow(it.grade, it.warehouse_id);
+    const need = Number(it.qty) || 0;
+    const margin = ((Number(it.rate)||0) - inv.avg_cost_per_kg) * need;
+    const amt = need * (Number(it.rate)||0);
+    const stockBad = need > inv.quantity_kg + 0.001;
+    return `<div class="itemRow">
+      <select onchange="updateSaleItem(${i},'grade',this.value);renderSaleRows()">${GRADES.map(g => `<option ${g===it.grade?'selected':''}>${g}</option>`).join('')}</select>
+      <select onchange="updateSaleItem(${i},'warehouse_id',Number(this.value));renderSaleRows()">${state.warehouses.map(w => `<option value="${w.id}" ${w.id===it.warehouse_id?'selected':''}>${w.name}</option>`).join('')}</select>
+      <input type="number" step="0.01" value="${it.qty}" oninput="updateSaleItem(${i},'qty',this.value);renderSaleRows()" />
+      <input type="number" step="0.01" value="${it.rate}" oninput="updateSaleItem(${i},'rate',this.value);renderSaleRows()" />
+      <div class="small ${stockBad?'bad':''}">avail ${kg(inv.quantity_kg)}<br>margin <span class="${margin>=0?'good':'bad'}">${inr(margin)}</span></div>
+      <div class="right"><strong>${inr(amt)}</strong></div>
+      <button type="button" class="btn" onclick="removeSaleRow(${i})" ${saleItems.length===1?'disabled':''} style="padding:4px 8px">×</button>
+    </div>`;
+  }).join('');
+  const issues = saleItems.map((it,i) => {
+    const inv = getInventoryRow(it.grade, it.warehouse_id);
+    const need = Number(it.qty) || 0;
+    return need > inv.quantity_kg + 0.001 ? { i, need, avail: inv.quantity_kg, grade: it.grade } : null;
+  }).filter(Boolean);
+  document.getElementById('stockWarn').innerHTML = issues.length === 0 ? '' :
+    `<div class="warning"><strong>Insufficient stock</strong><br>${issues.map(s => `Row ${s.i+1}: ${s.grade} - need ${kg(s.need)}, have ${kg(s.avail)}`).join('<br>')}</div>`;
+  const total = saleItems.reduce((s,it) => s + (Number(it.qty)||0)*(Number(it.rate)||0), 0);
+  document.getElementById('saleGrand').textContent = inr(total);
+  const submit = document.getElementById('saleSubmit');
+  if (submit) submit.disabled = issues.length > 0;
+}
+function updateSaleItem(i, k, v) { saleItems[i][k] = v; }
+function addSaleRow() { saleItems.push({ grade:'RSS4', warehouse_id:state.warehouses[0].id, qty:'', rate:'' }); renderSaleRows(); }
+function removeSaleRow(i) { saleItems.splice(i,1); renderSaleRows(); }
+function saveSale(e) {
+  e.preventDefault();
+  const items = saleItems.map(it => {
+    const inv = getInventoryRow(it.grade, it.warehouse_id);
+    return { ...it, qty: Number(it.qty), rate: Number(it.rate), cost: inv.avg_cost_per_kg };
+  }).filter(it => it.qty > 0 && it.rate > 0);
+  if (items.length === 0) { showToast('Add at least one valid item', 'error'); return; }
+  for (const it of items) {
+    const inv = getInventoryRow(it.grade, it.warehouse_id);
+    if (it.qty > inv.quantity_kg + 0.001) { showToast(`Not enough ${it.grade} stock`, 'error'); return; }
+  }
+  const total = items.reduce((s,i) => s + i.qty * i.rate, 0);
+  const sale = {
+    id: nextId('sale'),
+    customer_id: Number(document.getElementById('saleCust').value),
+    invoice: document.getElementById('saleInvoice').value,
+    date: document.getElementById('saleDate').value,
+    items, total, paid: 0,
+  };
+  state.sales.push(sale);
+  for (const it of items) {
+    state.movements.push({
+      id: nextId('movement'), date: sale.date,
+      grade: it.grade, warehouse_id: it.warehouse_id,
+      qty: -it.qty, rate: it.rate, cost_snapshot: it.cost,
+      type: 'sale', ref_id: sale.id,
+    });
+  }
+  save(); closeModal(); renderSales();
+  showToast('Sale saved (' + inrShort(sale.total) + ')');
+}
+
+// ======== Payment form ========
+function openPaymentForm() {
+  document.getElementById('modalContent').innerHTML = `
+    <div class="header"><h2>Record payment</h2><button class="close" onclick="closeModal()">×</button></div>
+    <div class="body"><form onsubmit="savePayment(event)">
+      <div class="row" style="margin-bottom:8px">
+        <button type="button" id="payTypeRecv" onclick="setPayType('received')" style="flex:1;padding:10px;border:none;border-radius:6px;cursor:pointer">⬇ Received from customer</button>
+        <button type="button" id="payTypePaid" onclick="setPayType('paid')" style="flex:1;padding:10px;border:none;border-radius:6px;cursor:pointer">⬆ Paid to supplier</button>
+      </div>
+      <div class="row">
+        <div class="field" style="min-width:280px"><label id="partyLabel">Party *</label><select id="payParty" required></select></div>
+        <div class="field"><label>Amount *</label><input type="number" step="0.01" id="payAmount" required /></div>
+        <div class="field"><label>Date *</label><input type="date" id="payDate" required value="${todayISO()}" /></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="field"><label>Mode</label>
+          <select id="payMode"><option>cash</option><option selected>bank</option><option>upi</option><option>cheque</option><option>rtgs</option><option>neft</option></select>
+        </div>
+        <div class="field" style="min-width:200px"><label>Transaction reference</label><input id="payRef" placeholder="UTR / cheque #" /></div>
+      </div>
+      <div style="text-align:right;margin-top:16px"><button class="btn-primary btn">Record payment</button></div>
+    </form></div>`;
+  setPayType('received');
+  document.getElementById('modalBg').classList.add('active');
+}
+let payType = 'received';
+function setPayType(t) {
+  payType = t;
+  const recv = document.getElementById('payTypeRecv');
+  const paid = document.getElementById('payTypePaid');
+  recv.style.background = t==='received'?'#0a8a3a':'#f3f4f6';
+  recv.style.color = t==='received'?'#fff':'#1a1f2e';
+  paid.style.background = t==='paid'?'#b08800':'#f3f4f6';
+  paid.style.color = t==='paid'?'#fff':'#1a1f2e';
+  const sel = document.getElementById('payParty');
+  if (t === 'received') {
+    document.getElementById('partyLabel').textContent = 'Customer *';
+    sel.innerHTML = state.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '<option value="">No customers</option>';
+  } else {
+    document.getElementById('partyLabel').textContent = 'Supplier *';
+    sel.innerHTML = state.suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '<option value="">No suppliers</option>';
+  }
+}
+function savePayment(e) {
+  e.preventDefault();
+  const partyId = Number(document.getElementById('payParty').value);
+  const amount = Number(document.getElementById('payAmount').value);
+  if (!partyId || !amount) { showToast('Pick a party and amount', 'error'); return; }
+  const payment = {
+    id: nextId('payment'), type: payType,
+    party_type: payType === 'received' ? 'customer' : 'supplier',
+    party_id: partyId, amount,
+    date: document.getElementById('payDate').value,
+    mode: document.getElementById('payMode').value,
+    ref: document.getElementById('payRef').value,
+  };
+  state.payments.push(payment);
+  let remaining = amount;
+  const list = payType === 'received'
+    ? state.sales.filter(s => s.customer_id === partyId && s.paid < s.total).sort((a,b)=>a.date.localeCompare(b.date))
+    : state.purchases.filter(p => p.supplier_id === partyId && p.paid < p.total).sort((a,b)=>a.date.localeCompare(b.date));
+  for (const inv of list) {
+    if (remaining <= 0) break;
+    const owed = inv.total - inv.paid;
+    const apply = Math.min(remaining, owed);
+    inv.paid += apply;
+    remaining -= apply;
+  }
+  save(); closeModal(); renderPayments();
+  showToast(`Payment of ${inrShort(amount)} recorded`);
+}
+
+// ======== INIT ========
+async function init() {
+  // PIN gate
+  if (state.settings.pin && state.settings.pin.length === 4) {
+    document.getElementById('pinGate').style.display = 'flex';
+  }
+  renderDashboard();
+
+  // Auto-fetch today's Rubber Board prices if our latest price is from a previous day
+  // and we haven't already auto-fetched today.
+  const today = todayISO();
+  const last = latestRow();
+  const lastFetchKey = 'hrtc.lastAutoFetch';
+  const alreadyFetchedToday = localStorage.getItem(lastFetchKey) === today;
+  if (last && last.date < today && !alreadyFetchedToday) {
+    setTimeout(async () => {
+      try {
+        await autoFetchInBackground();
+        localStorage.setItem(lastFetchKey, today);
+      } catch (e) { console.error('auto-fetch failed:', e); }
+    }, 800);
+  }
+
+  // Background market data fetch (Brent, USD/INR) too
+  setTimeout(() => { try { renderMarkets(); } catch(e){} }, 2500);
+
+  // Background news fetch (only once per day to be polite)
+  const lastNewsKey = 'hrtc.lastNewsFetch';
+  if (localStorage.getItem(lastNewsKey) !== today) {
+    setTimeout(async () => {
+      try { await fetchNews(); localStorage.setItem(lastNewsKey, today); } catch(e){}
+    }, 4000);
+  }
+
+  // Show a quiet "auto-updating" status banner on dashboard for the first 6 seconds
+  showAutoStatus();
+}
+
+function showAutoStatus() {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:14px;right:14px;background:#1a73e8;color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;z-index:300;box-shadow:0 2px 8px rgba(0,0,0,0.15)';
+  el.textContent = 'Auto-fetching today\'s data...';
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity 0.6s'; el.style.opacity = '0'; }, 5000);
+  setTimeout(() => { el.remove(); }, 6000);
+}
+
+// Quiet version of fetchTodayPrices that doesn't show banners in the prices page
+async function autoFetchInBackground() {
+  // First, try GitHub source (most reliable - server-side scrape)
+  if (state.settings.githubUrl) {
+    try {
+      const res = await fetch(state.settings.githubUrl + '?_=' + Date.now());
+      if (res.ok) {
+        const data = await res.json();
+        if (data.days) {
+          let newDays = 0, newPrices = 0;
+          for (const [date, grades] of Object.entries(data.days)) {
+            for (const [grade, price] of Object.entries(grades)) {
+              if (typeof price !== 'number') continue;
+              const exists = state.priceOverrides.some(o => o.grade === grade && o.date === date);
+              if (!exists) {
+                state.priceOverrides.push({ grade, date, price });
+                checkAlerts(grade, price);
+                newPrices++;
+              }
+            }
+          }
+          if (newPrices > 0) {
+            save();
+            showToast(`Synced ${newPrices} prices from GitHub`);
+            if (document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+            if (document.getElementById('page-prices').classList.contains('active')) renderPrices();
+          }
+          return; // Done — no need to fall back to CORS-proxy scrape
+        }
+      }
+    } catch (e) {
+      console.warn('GitHub fetch failed, falling back to CORS proxy:', e.message);
+    }
+  }
+  // Fallback: try CORS proxy scrape
+  try {
+    const url = encodeURIComponent('https://rubberboard.org.in/public');
+    const res = await fetch(CORS_PROXY + url);
+    if (!res.ok) throw new Error('proxy failed');
+    const html = await res.text();
+    const found = parsePricesFromHtml(html);
+    const today = todayISO();
+    let saved = 0;
+    for (const [grade, price] of Object.entries(found)) {
+      // don't duplicate if user already entered today's price
+      if (state.priceOverrides.some(o => o.grade === grade && o.date === today)) continue;
+      state.priceOverrides.push({ grade, date: today, price });
+      checkAlerts(grade, price);
+      saved++;
+    }
+    if (saved > 0) {
+      save();
+      showToast(`Auto-fetched ${saved} prices for today`);
+      // Refresh dashboard if visible
+      if (document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+    }
+  } catch (e) {
+    console.warn('auto-fetch failed silently:', e.message);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
