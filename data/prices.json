@@ -1,5 +1,9 @@
 {
-  "last_update": null,
-  "source": "https://rubberboard.org.in/public",
-  "days": {}
+  "days": {
+    "2025-11-07": {
+      "Latex": 60.0
+    }
+  },
+  "last_update": "2026-04-25T18:43:37.784315+00:00",
+  "source": "https://rubberboard.org.in/public"
 }
