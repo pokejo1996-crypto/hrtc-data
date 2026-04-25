@@ -1,0 +1,38 @@
+name: Daily Rubber Board scrape
+
+on:
+  # Runs at 18:30 IST = 13:00 UTC every day
+  schedule:
+    - cron: '0 13 * * *'
+  # Allow manual trigger from the GitHub UI
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run scraper
+        run: python scrape.py
+
+      - name: Commit updated prices.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain data/prices.json)" ]; then
+            git add data/prices.json
+            DATE=$(date -u +'%Y-%m-%d')
+            git commit -m "Daily prices update $DATE"
+            git push
+            echo "Committed and pushed."
+          else
+            echo "No price changes."
+          fi
