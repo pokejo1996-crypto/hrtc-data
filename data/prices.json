@@ -2,8 +2,11 @@
   "days": {
     "2025-11-07": {
       "Latex": 60.0
+    },
+    "2026-04-26": {
+      "RSS4": 160.0
     }
   },
-  "last_update": "2026-04-25T18:43:37.784315+00:00",
-  "source": "https://rubberboard.org.in/public"
+  "last_update": "2026-04-25T18:51:20.664838+00:00",
+  "source": "https://rubberboard.gov.in/public"
 }
