@@ -1,17 +1,19 @@
-"""HRTC Daily Rubber Board Price Scraper"""
+"""HRTC Daily Rubber Board Price Scraper - v2 with correct URL + tighter parser"""
 import json, os, re, sys, urllib.request
 from datetime import datetime, timezone, timedelta
 
-URL = 'https://rubberboard.org.in/public'
+URL = 'https://rubberboard.gov.in/public'
 PRICES_FILE = 'data/prices.json'
 UA = 'Mozilla/5.0 (compatible; HRTC-bot/1.0)'
 
-ALIASES = {
-    'RSS4': ['RSS 4', 'RSS-4', 'RSS4'],
-    'RSS5': ['RSS 5', 'RSS-5', 'RSS5'],
-    'ISNR20': ['ISNR 20', 'ISNR-20', 'ISNR20'],
-    'Latex': ['LATEX 60% DRC', 'LATEX (60% DRC)', '60% LATEX', 'LATEX'],
-}
+# (Aliases for each grade, plus reasonable INR/kg price range so we ignore
+# random numbers like percentages or years.)
+GRADES = [
+    {'code': 'RSS4',   'aliases': ['RSS 4', 'RSS-4', 'RSS4'],     'lo': 100, 'hi': 500},
+    {'code': 'RSS5',   'aliases': ['RSS 5', 'RSS-5', 'RSS5'],     'lo': 100, 'hi': 500},
+    {'code': 'ISNR20', 'aliases': ['ISNR 20', 'ISNR-20', 'ISNR20'],'lo': 100, 'hi': 400},
+    {'code': 'Latex',  'aliases': ['Latex 60', 'LATEX (60', 'Centrifuged Latex', 'Latex'], 'lo': 80, 'hi': 350},
+]
 
 def fetch_html():
     req = urllib.request.Request(URL, headers={'User-Agent': UA})
@@ -22,18 +24,20 @@ def parse_prices(html):
     out = {}
     text = re.sub(r'<[^>]+>', ' ', html)
     text = re.sub(r'\s+', ' ', text)
-    for code, names in ALIASES.items():
-        for name in names:
-            pat = re.escape(name) + r'[^0-9]{1,60}([0-9]{2,4}(?:\.[0-9]+)?)'
-            m = re.search(pat, text, re.IGNORECASE)
-            if m:
+    for g in GRADES:
+        for name in g['aliases']:
+            # Look for the alias label, then within 80 chars a number in the price range
+            pat = re.escape(name) + r'[^\d]{1,80}(\d{2,4}(?:\.\d+)?)'
+            for m in re.finditer(pat, text, re.IGNORECASE):
                 try:
                     val = float(m.group(1))
-                    if 50 <= val <= 1000:
-                        out[code] = val
-                        break
                 except ValueError:
-                    pass
+                    continue
+                if g['lo'] <= val <= g['hi']:
+                    out[g['code']] = val
+                    break
+            if g['code'] in out:
+                break
     return out
 
 def page_date(html):
@@ -41,11 +45,14 @@ def page_date(html):
     if m:
         try:
             d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
-            return f'{y:04d}-{mo:02d}-{d:02d}'
+            today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
+            parsed = datetime(y, mo, d).date()
+            if abs((parsed - today).days) > 7:
+                return today.isoformat()  # use today if extracted date is far off
+            return parsed.isoformat()
         except ValueError:
             pass
-    ist = timezone(timedelta(hours=5, minutes=30))
-    return datetime.now(ist).strftime('%Y-%m-%d')
+    return datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime('%Y-%m-%d')
 
 def load_prices():
     if not os.path.exists(PRICES_FILE):
