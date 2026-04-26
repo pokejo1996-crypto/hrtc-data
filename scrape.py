@@ -8,7 +8,13 @@ PRICES_FILE = 'data/prices.json'
 DEBUG_FILE = 'data/raw_page.html'
 
 INDIAN_URL = 'https://rubberboard.gov.in/public'
-ASIAN_FALLBACK_URLS = ['https://rubberboard.gov.in/public']
+ASIAN_FALLBACK_URLS = [
+    'https://rubberboard.gov.in/public',
+    'https://www.sgx.com/derivatives/products/sicom-rubber?cc=RT',
+    'https://www.tfex.co.th/en/products/agriculture/rss3-futures/market-data',
+    'https://www.tradingview.com/symbols/TOCOM-TRB1!/',
+    'https://www.jpx.co.jp/english/derivatives/products/rubber/rss3-rubber-futures/index.html',
+]
 
 INDIAN_GRADES = [
     {'code': 'RSS4',   'aliases': ['RSS4', 'RSS-4', 'RSS 4'],     'lo': 100, 'hi': 500},
