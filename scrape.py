@@ -1,81 +1,118 @@
-"""HRTC scraper - decodes entities, divides per-quintal prices by 100"""
+"""HRTC scraper - v3 with Asian markets attempt"""
 import html as htmllib
 import json, os, re, urllib.request
 from datetime import datetime, timezone, timedelta
 
-URL = 'https://rubberboard.gov.in/public'
+UA = 'Mozilla/5.0 (compatible; HRTC-bot/1.0)'
 PRICES_FILE = 'data/prices.json'
 DEBUG_FILE = 'data/raw_page.html'
-UA = 'Mozilla/5.0 (compatible; HRTC-bot/1.0)'
 
-# The page lists prices per quintal (100 kg). We divide by 100 to get INR/kg.
-GRADES = [
+INDIAN_URL = 'https://rubberboard.gov.in/public'
+ASIAN_FALLBACK_URLS = ['https://rubberboard.gov.in/public']
+
+INDIAN_GRADES = [
     {'code': 'RSS4',   'aliases': ['RSS4', 'RSS-4', 'RSS 4'],     'lo': 100, 'hi': 500},
     {'code': 'RSS5',   'aliases': ['RSS5', 'RSS-5', 'RSS 5'],     'lo': 100, 'hi': 500},
     {'code': 'ISNR20', 'aliases': ['ISNR20', 'ISNR-20', 'ISNR 20'],'lo': 100, 'hi': 400},
-    {'code': 'Latex',  'aliases': ['Latex60', 'Latex-60', 'Latex 60', 'Latex60% DRC', 'Latex(60)', 'CenLatex'], 'lo': 80, 'hi': 350},
+    {'code': 'Latex',  'aliases': ['Latex60', 'Latex-60', 'Latex 60', 'Latex(60', '60% Latex', 'CenLatex', 'Centrifuged'], 'lo': 80, 'hi': 350},
 ]
 
-os.makedirs('data', exist_ok=True)
+ASIAN_GRADES = [
+    {'code': 'TOCOM',   'aliases': ['TOCOM', 'OSAKA RSS3', 'Osaka Rubber', 'JPX Rubber', 'Tokyo Rubber'], 'lo': 150, 'hi': 600, 'currency': 'JPY/kg'},
+    {'code': 'SICOM',   'aliases': ['SICOM', 'TSR20', 'TSR-20', 'TSR 20', 'Singapore Rubber', 'SGX Rubber'], 'lo': 100, 'hi': 400, 'currency': 'cents/kg'},
+    {'code': 'BANGKOK', 'aliases': ['Bangkok', 'Thai USS3', 'USS3', 'USS 3', 'Thai Rubber', 'Thailand RSS3'], 'lo': 30, 'hi': 150, 'currency': 'THB/kg'},
+]
 
+def fetch(url, timeout=20):
+    req = urllib.request.Request(url, headers={'User-Agent': UA})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode('utf-8', errors='replace')
+
+def normalise(html):
+    text = re.sub(r'<[^>]+>', ' ', html)
+    text = htmllib.unescape(text)
+    text = re.sub(r'\s+', ' ', text)
+    return text
+
+def parse_indian(text):
+    out = {}
+    for g in INDIAN_GRADES:
+        for name in g['aliases']:
+            pat = re.escape(name) + r'\s+([\d,]+\.?\d*)'
+            for hit in re.finditer(pat, text, re.IGNORECASE):
+                try:
+                    raw = float(hit.group(1).replace(',', ''))
+                except ValueError:
+                    continue
+                v = raw / 100 if raw > 1000 else raw
+                if g['lo'] <= v <= g['hi']:
+                    out[g['code']] = round(v, 2)
+                    break
+            if g['code'] in out:
+                break
+    return out
+
+def parse_asian(text):
+    out = {}
+    for g in ASIAN_GRADES:
+        for name in g['aliases']:
+            pat = re.escape(name) + r'[^\d]{1,80}([\d,]+\.?\d*)'
+            for hit in re.finditer(pat, text, re.IGNORECASE):
+                try:
+                    raw = float(hit.group(1).replace(',', ''))
+                except ValueError:
+                    continue
+                if g['lo'] <= raw <= g['hi']:
+                    out[g['code']] = {'price': round(raw, 2), 'currency': g['currency']}
+                    break
+            if g['code'] in out:
+                break
+    return out
+
+def page_date(text):
+    ist = timezone(timedelta(hours=5, minutes=30))
+    today = datetime.now(ist).date()
+    m = re.search(r'\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b', text)
+    if m:
+        try:
+            d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            parsed = datetime(y, mo, d).date()
+            if abs((parsed - today).days) <= 7:
+                return parsed.isoformat()
+        except ValueError:
+            pass
+    return today.isoformat()
+
+os.makedirs('data', exist_ok=True)
+print(f'Fetching {INDIAN_URL}...')
 try:
-    req = urllib.request.Request(URL, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        html = resp.read().decode('utf-8', errors='replace')
-    print(f'Got {len(html)} bytes from {URL}')
+    html = fetch(INDIAN_URL)
+    print(f'Got {len(html)} bytes')
+    open(DEBUG_FILE, 'w').write(html)
 except Exception as e:
     print(f'FETCH FAILED: {e}')
-    html = f'<!-- fetch failed: {e} -->'
+    html = ''
 
-with open(DEBUG_FILE, 'w') as f:
-    f.write(html)
+text = normalise(html) if html else ''
+indian = parse_indian(text)
+pd = page_date(text) if text else datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime('%Y-%m-%d')
+print(f'Indian date: {pd}, found: {indian}')
 
-# Strip tags, decode entities, collapse whitespace
-text = re.sub(r'<[^>]+>', ' ', html)
-text = htmllib.unescape(text)               # &nbsp;, &#160; -> real spaces
-text = re.sub(r'[\s\u00a0]+', ' ', text)    # collapse all whitespace types
-
-# Restrict to the price section (after "Category" word) to avoid false matches
-m = re.search(r'Category\s*INR.*?USD', text, re.IGNORECASE)
-section = text[m.start():m.start()+3000] if m else text
-
-found = {}
-for g in GRADES:
-    for name in g['aliases']:
-        pat = re.escape(name) + r'\s+([\d,]+\.?\d*)'
-        for hit in re.finditer(pat, section, re.IGNORECASE):
-            try:
-                raw = float(hit.group(1).replace(',', ''))
-            except ValueError:
-                continue
-            # If it's a per-quintal price (typical 8000-50000), divide by 100
-            v = raw / 100 if raw > 1000 else raw
-            if g['lo'] <= v <= g['hi']:
-                found[g['code']] = round(v, 2)
-                break
-        if g['code'] in found:
-            break
-
-# Page date
-ist = timezone(timedelta(hours=5, minutes=30))
-m = re.search(r'\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b', text)
-if m:
+asian = {}
+for url in ASIAN_FALLBACK_URLS:
     try:
-        d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        page_date = datetime(y, mo, d).date().isoformat()
-        # If far from today, use today
-        today = datetime.now(ist).date()
-        if abs((datetime(y, mo, d).date() - today).days) > 7:
-            page_date = today.isoformat()
-    except ValueError:
-        page_date = datetime.now(ist).strftime('%Y-%m-%d')
-else:
-    page_date = datetime.now(ist).strftime('%Y-%m-%d')
+        h = fetch(url) if url != INDIAN_URL else html
+        if not h: continue
+        t = normalise(h)
+        found = parse_asian(t)
+        for code, data in found.items():
+            if code not in asian:
+                asian[code] = data
+                print(f'Asian {code} via {url}: {data}')
+    except Exception as e:
+        print(f'Asian fetch failed for {url}: {e}')
+print(f'Asian found: {asian}')
 
-print(f'Date: {page_date}')
-print(f'Found: {found}')
-
-# Save
 prices = {}
 if os.path.exists(PRICES_FILE):
     try:
@@ -83,10 +120,13 @@ if os.path.exists(PRICES_FILE):
     except Exception:
         prices = {}
 prices.setdefault('days', {})
-if found:
-    prices['days'].setdefault(page_date, {}).update(found)
+prices.setdefault('asian', {})
+if indian:
+    prices['days'].setdefault(pd, {}).update(indian)
+if asian:
+    prices['asian'][pd] = asian
 prices['last_update'] = datetime.now(timezone.utc).isoformat()
-prices['source'] = URL
+prices['source'] = INDIAN_URL
 with open(PRICES_FILE, 'w') as f:
     json.dump(prices, f, indent=2, sort_keys=True)
-print(f'Saved. Total days in file: {len(prices["days"])}')
+print(f'Saved. Indian days: {len(prices["days"])}, Asian days: {len(prices["asian"])}')
