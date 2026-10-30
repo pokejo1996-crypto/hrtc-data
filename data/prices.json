@@ -534,8 +534,14 @@
       "ISNR20": 255.0,
       "RSS4": 272.0,
       "RSS5": 268.0
+    },
+    "2026-10-29": {
+      "ISNR20": 279.0,
+      "Latex": 198.65,
+      "RSS4": 297.0,
+      "RSS5": 291.0
     }
   },
-  "last_update": "2026-10-29T17:17:08.294595+00:00",
-  "source": "https://rubberboard.gov.in/public"
+  "last_update": "2026-10-30T07:18:48.229211+00:00",
+  "source": "http://www.indiannaturalrubber.com/"
 }
